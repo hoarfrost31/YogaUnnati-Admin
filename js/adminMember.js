@@ -32,6 +32,7 @@ const adminMemberTabEls = Array.from(document.querySelectorAll("[data-admin-memb
 const adminMemberPanelEls = Array.from(document.querySelectorAll("[data-admin-member-panel]"));
 const BILLING_PERIOD_DAYS = 30;
 const ADMIN_SET_PASSWORD_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-password';
+const ADMIN_DELETE_MEMBER_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-delete-member';
 
 let adminMemberPracticeDates = [];
 let adminCalendarDate = new Date();
@@ -47,6 +48,12 @@ function setAdminMemberMembershipMessage(text) {
 function setAdminMemberPasswordMessage(text) {
   if (adminMemberPasswordMsgEl) {
     adminMemberPasswordMsgEl.textContent = text;
+  }
+}
+
+function setAdminMemberDeleteMessage(text) {
+  if (adminMemberDeleteMsgEl) {
+    adminMemberDeleteMsgEl.textContent = text;
   }
 }
 
@@ -646,6 +653,10 @@ if (adminMemberSetPasswordBtnEl) {
   adminMemberSetPasswordBtnEl.addEventListener('click', setMemberPassword);
 }
 
+if (adminMemberDeleteBtnEl) {
+  adminMemberDeleteBtnEl.addEventListener('click', deleteMemberAccount);
+}
+
 initializeAdminMemberTabs();
 
 loadAdminMember().catch((error) => {
@@ -667,7 +678,6 @@ loadAdminMember().catch((error) => {
   setAdminMemberPasswordMessage('Password tools could not be loaded.');
   setAdminMemberDeleteMessage('Delete tools could not be loaded.');
 });
-
 
 
 
