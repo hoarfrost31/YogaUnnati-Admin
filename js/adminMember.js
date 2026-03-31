@@ -26,6 +26,8 @@ const adminMemberMembershipMsgEl = document.getElementById("adminMemberMembershi
 const adminMemberPasswordInputEl = document.getElementById("adminMemberPasswordInput");
 const adminMemberSetPasswordBtnEl = document.getElementById("adminMemberSetPasswordBtn");
 const adminMemberPasswordMsgEl = document.getElementById("adminMemberPasswordMsg");
+const adminMemberDeleteBtnEl = document.getElementById("adminMemberDeleteBtn");
+const adminMemberDeleteMsgEl = document.getElementById("adminMemberDeleteMsg");
 const adminMemberTabEls = Array.from(document.querySelectorAll("[data-admin-member-tab]"));
 const adminMemberPanelEls = Array.from(document.querySelectorAll("[data-admin-member-panel]"));
 const BILLING_PERIOD_DAYS = 30;
@@ -665,6 +667,7 @@ loadAdminMember().catch((error) => {
   setAdminMemberPasswordMessage('Password tools could not be loaded.');
   setAdminMemberDeleteMessage('Delete tools could not be loaded.');
 });
+
 
 
 
