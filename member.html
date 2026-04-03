@@ -57,6 +57,7 @@
           <button type="button" class="admin-detail-tab is-active" data-admin-member-tab="calendar" aria-selected="true">Practice Calendar</button>
           <button type="button" class="admin-detail-tab" data-admin-member-tab="membership" aria-selected="false">Membership / Plan</button>
           <button type="button" class="admin-detail-tab" data-admin-member-tab="history" aria-selected="false">Subscription History</button>
+          <button type="button" class="admin-detail-tab" data-admin-member-tab="account" aria-selected="false">Account</button>
         </div>
 
         <div class="admin-detail-panel is-active" data-admin-member-panel="calendar">
@@ -163,6 +164,22 @@
             </div>
           </div>
 
+          <p id="adminMemberMembershipMsg" class="auth-message admin-inline-message"></p>
+        </div>
+
+        <div class="admin-detail-panel" data-admin-member-panel="history" hidden>
+          <div class="admin-card-head">
+            <div>
+              <h2>Membership periods</h2>
+            </div>
+            <span class="admin-chip" id="adminMembershipHistoryCount">0 periods</span>
+          </div>
+          <div id="adminMembershipHistoryList" class="admin-history-list">
+            <div class="admin-empty-state">Loading subscription history...</div>
+          </div>
+        </div>
+
+        <div class="admin-detail-panel" data-admin-member-panel="account" hidden>
           <div class="admin-card admin-member-password-card">
             <div class="admin-card-head">
               <div>
@@ -205,20 +222,6 @@
               <button id="adminMemberDeleteBtn" class="secondary-btn" type="button">Delete Member</button>
             </div>
             <p id="adminMemberDeleteMsg" class="auth-message admin-inline-message"></p>
-          </div>
-
-          <p id="adminMemberMembershipMsg" class="auth-message admin-inline-message"></p>
-        </div>
-
-        <div class="admin-detail-panel" data-admin-member-panel="history" hidden>
-          <div class="admin-card-head">
-            <div>
-              <h2>Membership periods</h2>
-            </div>
-            <span class="admin-chip" id="adminMembershipHistoryCount">0 periods</span>
-          </div>
-          <div id="adminMembershipHistoryList" class="admin-history-list">
-            <div class="admin-empty-state">Loading subscription history...</div>
           </div>
         </div>
       </section>
