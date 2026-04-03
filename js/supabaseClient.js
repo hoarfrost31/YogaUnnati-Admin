@@ -3,11 +3,19 @@ const supabaseUrl = "https://wiqazuogcyxvtcoyekvc.supabase.co";
 const supabaseKey = "sb_publishable_r5m-2kccX-q36GbBQc1jXQ_T-H7E1UY";
 const AUTH_CACHE_KEY = "yogaunnati_auth_user_v1";
 
-window.supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+window.supabaseClient = supabase.createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: "yogaunnati_admin_supabase_auth_v1",
+  },
+});
 
 function readCachedAuthUser() {
   try {
-    const raw = sessionStorage.getItem(AUTH_CACHE_KEY);
+    const raw = localStorage.getItem(AUTH_CACHE_KEY);
     if (!raw) {
       return null;
     }
@@ -23,11 +31,11 @@ function readCachedAuthUser() {
 function writeCachedAuthUser(user) {
   try {
     if (!user) {
-      sessionStorage.removeItem(AUTH_CACHE_KEY);
+      localStorage.removeItem(AUTH_CACHE_KEY);
       return;
     }
 
-    sessionStorage.setItem(
+    localStorage.setItem(
       AUTH_CACHE_KEY,
       JSON.stringify({
         id: user.id || "",
