@@ -5,6 +5,7 @@ const adminPracticePulseEl = document.getElementById("adminPracticePulse");
 const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-tab]"));
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
+const adminActivatedTouchKeys = new WeakMap();
 
 function setActiveAdminHomeTab(tabName, options = {}) {
   const updateHash = options.updateHash !== false;
@@ -33,13 +34,35 @@ function getAdminHomeTabFromHash() {
   return window.location.hash.toLowerCase() === "#members" ? "members" : "dashboard";
 }
 
+function bindAdminActivation(element, handler) {
+  if (!element) {
+    return;
+  }
+
+  element.addEventListener("click", (event) => {
+    const lastTouchAt = adminActivatedTouchKeys.get(element) || 0;
+    if (Date.now() - lastTouchAt < 700) {
+      event.preventDefault();
+      return;
+    }
+
+    handler(event);
+  });
+
+  element.addEventListener("touchend", (event) => {
+    adminActivatedTouchKeys.set(element, Date.now());
+    event.preventDefault();
+    handler(event);
+  }, { passive: false });
+}
+
 function initializeAdminHomeTabs() {
   if (!adminHomeTabEls.length || !adminHomePanelEls.length) {
     return;
   }
 
   adminHomeTabEls.forEach((button) => {
-    button.addEventListener("click", () => {
+    bindAdminActivation(button, () => {
       setActiveAdminHomeTab(button.dataset.adminHomeTab || "dashboard");
     });
   });
@@ -49,7 +72,7 @@ function initializeAdminHomeTabs() {
   });
 
   adminHomeTabTargetEls.forEach((button) => {
-    button.addEventListener("click", () => {
+    bindAdminActivation(button, () => {
       setActiveAdminHomeTab(button.dataset.adminHomeTabTarget || "dashboard");
     });
   });
