@@ -55,9 +55,9 @@
       <section class="admin-card admin-detail-tabs-card">
         <div class="admin-detail-tabs" role="tablist" aria-label="Member detail sections">
           <button type="button" class="admin-detail-tab is-active" data-admin-member-tab="calendar" aria-selected="true">Practice Calendar</button>
-          <button type="button" class="admin-detail-tab" data-admin-member-tab="membership" aria-selected="false">Membership / Plan</button>
+          <button type="button" class="admin-detail-tab" data-admin-member-tab="membership" aria-selected="false">Membership Info / Plan</button>
           <button type="button" class="admin-detail-tab" data-admin-member-tab="history" aria-selected="false">Subscription History</button>
-          <button type="button" class="admin-detail-tab" data-admin-member-tab="account" aria-selected="false">Account</button>
+          <button type="button" class="admin-detail-tab" data-admin-member-tab="account" aria-selected="false">Access Control</button>
         </div>
 
         <div class="admin-detail-panel is-active" data-admin-member-panel="calendar">
@@ -237,15 +237,15 @@
             <p id="adminMemberLoginAccessMsg" class="auth-message admin-inline-message"></p>
           </div>
 
-          <div class="admin-card admin-member-password-card">
+          <div class="admin-card admin-member-password-card admin-member-danger-card">
             <div class="admin-card-head">
               <div>
                 <h2>Delete member account</h2>
               </div>
             </div>
-            <p class="admin-inline-note">This removes the member login and their account data permanently.</p>
+            <p class="admin-inline-note admin-member-danger-note">This removes the member login and their account data permanently.</p>
             <div class="profile-form-actions admin-form-actions">
-              <button id="adminMemberDeleteBtn" class="secondary-btn" type="button">Delete Member</button>
+              <button id="adminMemberDeleteBtn" class="secondary-btn admin-danger-btn" type="button">Delete Member</button>
             </div>
             <p id="adminMemberDeleteMsg" class="auth-message admin-inline-message"></p>
           </div>
