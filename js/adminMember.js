@@ -1075,6 +1075,12 @@ if (adminMemberSetPasswordBtnEl) {
 if (adminMemberToggleLoginBtnEl) {
   adminMemberToggleLoginBtnEl.addEventListener('click', () => {
     const nextLoginDisabled = !Boolean(currentAdminProfileRow?.login_disabled);
+    if (nextLoginDisabled) {
+      const confirmed = window.confirm('Block login for this member? They will not be able to sign in until you restore access.');
+      if (!confirmed) {
+        return;
+      }
+    }
     updateMemberLoginAccess(nextLoginDisabled);
   });
 }
