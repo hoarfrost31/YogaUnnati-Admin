@@ -22,6 +22,11 @@ const adminMemberMembershipPlanEl = document.getElementById("adminMemberMembersh
 const adminMemberMembershipStatusEl = document.getElementById("adminMemberMembershipStatus");
 const adminMemberMembershipStartEl = document.getElementById("adminMemberMembershipStart");
 const adminMemberMembershipRenewalEl = document.getElementById("adminMemberMembershipRenewal");
+const adminMemberDisplayNameInputEl = document.getElementById("adminMemberDisplayName");
+const adminMemberEmailInputEl = document.getElementById("adminMemberEmail");
+const adminMemberPhoneInputEl = document.getElementById("adminMemberPhone");
+const adminMemberSaveInfoBtnEl = document.getElementById("adminMemberSaveInfoBtn");
+const adminMemberInfoMsgEl = document.getElementById("adminMemberInfoMsg");
 const adminMemberSaveMembershipBtnEl = document.getElementById("adminMemberSaveMembershipBtn");
 const adminMemberMembershipMsgEl = document.getElementById("adminMemberMembershipMsg");
 const adminMemberReminderCardEl = document.getElementById("adminMemberReminderCard");
@@ -38,6 +43,7 @@ const adminMemberDeleteMsgEl = document.getElementById("adminMemberDeleteMsg");
 const adminMemberTabEls = Array.from(document.querySelectorAll("[data-admin-member-tab]"));
 const adminMemberPanelEls = Array.from(document.querySelectorAll("[data-admin-member-panel]"));
 const BILLING_PERIOD_DAYS = 30;
+const ADMIN_MEMBER_ACCOUNT_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-member-account';
 const ADMIN_SET_PASSWORD_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-password';
 const ADMIN_SET_LOGIN_DISABLED_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-login-disabled';
 const ADMIN_DELETE_MEMBER_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-delete-member';
@@ -47,6 +53,13 @@ let adminCalendarDate = new Date();
 let currentAdminMemberId = "";
 let currentAdminMembershipRow = null;
 let currentAdminProfileRow = null;
+let currentAdminMemberEmail = "";
+
+function setAdminMemberInfoMessage(text) {
+  if (adminMemberInfoMsgEl) {
+    adminMemberInfoMsgEl.textContent = text;
+  }
+}
 
 function setAdminMemberMembershipMessage(text) {
   if (adminMemberMembershipMsgEl) {
@@ -70,6 +83,22 @@ function setAdminMemberDeleteMessage(text) {
   if (adminMemberDeleteMsgEl) {
     adminMemberDeleteMsgEl.textContent = text;
   }
+}
+
+function normalizeAdminEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeAdminPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 10) return digits;
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  return '';
+}
+
+async function getAdminAccessToken() {
+  const { data } = await window.supabaseClient.auth.getSession();
+  return data?.session?.access_token || '';
 }
 
 function renderAdminLoginAccess(profileRow) {
@@ -394,6 +423,64 @@ function renderMembershipSummary(membershipRow) {
   }
 }
 
+function renderAdminMemberInfoForm({ displayName = "", email = "", phone = "" } = {}) {
+  currentAdminMemberEmail = normalizeAdminEmail(email);
+
+  if (adminMemberDisplayNameInputEl) {
+    adminMemberDisplayNameInputEl.value = displayName || "";
+  }
+  if (adminMemberEmailInputEl) {
+    adminMemberEmailInputEl.value = currentAdminMemberEmail;
+  }
+  if (adminMemberPhoneInputEl) {
+    adminMemberPhoneInputEl.value = phone || "";
+  }
+}
+
+async function loadAdminMemberAccount(memberId, profile) {
+  if (!memberId) {
+    return;
+  }
+
+  try {
+    const accessToken = await getAdminAccessToken();
+    if (!accessToken) {
+      throw new Error('Admin session missing. Please sign in again.');
+    }
+
+    const response = await fetch(ADMIN_MEMBER_ACCOUNT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        mode: 'get',
+        member_id: memberId,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Could not load member account info.');
+    }
+
+    renderAdminMemberInfoForm({
+      displayName: payload.display_name || profile?.displayName || "",
+      email: payload.email || "",
+      phone: payload.phone || profile?.phone || "",
+    });
+  } catch (error) {
+    console.error(error);
+    renderAdminMemberInfoForm({
+      displayName: profile?.displayName || "",
+      email: currentAdminMemberEmail,
+      phone: profile?.phone || "",
+    });
+    setAdminMemberInfoMessage(error.message || 'Could not load member info.');
+  }
+}
+
 function renderMembershipEditor(membershipRow) {
   currentAdminMembershipRow = membershipRow || null;
   const planCode = membershipRow?.plan_code || "none";
@@ -431,6 +518,84 @@ function renderAdminMemberReminder(profileRow, membershipRow, displayName) {
   adminMemberReminderNoteEl.textContent = canSend
     ? "Send a WhatsApp reminder for this overdue membership."
     : "Add a phone number to this member profile before sending a reminder.";
+}
+
+async function saveAdminMemberInfo() {
+  if (!currentAdminMemberId || !adminMemberSaveInfoBtnEl) {
+    return;
+  }
+
+  const displayName = String(adminMemberDisplayNameInputEl?.value || '').trim();
+  const email = normalizeAdminEmail(adminMemberEmailInputEl?.value || '');
+  const phone = normalizeAdminPhone(adminMemberPhoneInputEl?.value || '');
+
+  if (!email) {
+    setAdminMemberInfoMessage('Email is required.');
+    return;
+  }
+
+  if (!phone) {
+    setAdminMemberInfoMessage('Enter a valid 10-digit mobile number.');
+    return;
+  }
+
+  adminMemberSaveInfoBtnEl.disabled = true;
+  setAdminMemberInfoMessage('Saving member info...');
+
+  try {
+    const accessToken = await getAdminAccessToken();
+    if (!accessToken) {
+      throw new Error('Admin session missing. Please sign in again.');
+    }
+
+    const response = await fetch(ADMIN_MEMBER_ACCOUNT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        mode: 'update',
+        member_id: currentAdminMemberId,
+        display_name: displayName,
+        email,
+        phone,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Could not update member info.');
+    }
+
+    const resolvedDisplayName = String(payload.display_name || displayName || email.split('@')[0] || 'Yoga Member').trim();
+    currentAdminMemberEmail = normalizeAdminEmail(payload.email || email);
+    currentAdminProfileRow = {
+      ...(currentAdminProfileRow || {}),
+      display_name: resolvedDisplayName,
+      phone,
+    };
+
+    if (adminMemberNameEl) {
+      adminMemberNameEl.textContent = resolvedDisplayName;
+    }
+    if (adminMemberPhoneLineEl) {
+      adminMemberPhoneLineEl.textContent = phone ? `Phone: ${phone}` : 'Phone: -';
+    }
+    renderAdminMemberReminder(currentAdminProfileRow, currentAdminMembershipRow, resolvedDisplayName);
+
+    renderAdminMemberInfoForm({
+      displayName: resolvedDisplayName,
+      email: currentAdminMemberEmail,
+      phone,
+    });
+    setAdminMemberInfoMessage('Member info updated.');
+  } catch (error) {
+    console.error(error);
+    setAdminMemberInfoMessage(error.message || 'Could not update member info.');
+  } finally {
+    adminMemberSaveInfoBtnEl.disabled = false;
+  }
 }
 
 function getHistorySourceLabel(source) {
@@ -809,6 +974,12 @@ async function loadAdminMember() {
     adminMemberReferenceLineEl.textContent = `Member ID: ${memberId}`;
   }
 
+  renderAdminMemberInfoForm({
+    displayName,
+    email: currentAdminMemberEmail,
+    phone: phoneNumber,
+  });
+  await loadAdminMemberAccount(memberId, profile);
   renderMembershipSummary(membershipRow);
   renderMembershipEditor(membershipRow);
   renderAdminMemberReminder(profile, membershipRow, displayName);
@@ -841,6 +1012,10 @@ if (adminMemberMembershipStartEl) {
 
 if (adminMemberSaveMembershipBtnEl) {
   adminMemberSaveMembershipBtnEl.addEventListener('click', saveMemberMembership);
+}
+
+if (adminMemberSaveInfoBtnEl) {
+  adminMemberSaveInfoBtnEl.addEventListener('click', saveAdminMemberInfo);
 }
 
 if (adminMemberSetPasswordBtnEl) {
@@ -878,6 +1053,7 @@ loadAdminMember().catch((error) => {
   if (adminPracticeCalendarGridEl) {
     adminPracticeCalendarGridEl.innerHTML = '<div class="admin-empty-state">Calendar could not be loaded.</div>';
   }
+  setAdminMemberInfoMessage('Member info tools could not be loaded.');
   if (adminMembershipHistoryListEl) {
     adminMembershipHistoryListEl.innerHTML = '<div class="admin-empty-state">Subscription history could not be loaded.</div>';
   }

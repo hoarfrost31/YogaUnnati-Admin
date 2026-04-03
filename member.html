@@ -85,6 +85,32 @@
         </div>
 
         <div class="admin-detail-panel" data-admin-member-panel="membership" hidden>
+          <div class="admin-card admin-member-password-card">
+            <div class="admin-card-head">
+              <div>
+                <h2>Member info</h2>
+              </div>
+            </div>
+            <div class="admin-form-grid">
+              <div>
+                <label class="field-label" for="adminMemberDisplayName">Member Name</label>
+                <input id="adminMemberDisplayName" class="input" type="text" placeholder="Member name">
+              </div>
+              <div>
+                <label class="field-label" for="adminMemberEmail">Email</label>
+                <input id="adminMemberEmail" class="input" type="email" placeholder="member@example.com">
+              </div>
+              <div>
+                <label class="field-label" for="adminMemberPhone">Phone</label>
+                <input id="adminMemberPhone" class="input" type="tel" inputmode="numeric" placeholder="10-digit mobile number">
+              </div>
+            </div>
+            <div class="profile-form-actions admin-form-actions">
+              <button id="adminMemberSaveInfoBtn" class="primary-btn" type="button">Save Member Info</button>
+            </div>
+            <p id="adminMemberInfoMsg" class="auth-message admin-inline-message"></p>
+          </div>
+
           <div class="admin-card-head">
             <div>
               <h2>Assign or update plan</h2>
