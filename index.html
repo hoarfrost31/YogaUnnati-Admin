@@ -97,15 +97,15 @@
           <a href="create-member.html" class="secondary-btn admin-inline-btn">Add Member</a>
         </div>
 
-        <section class="admin-card admin-search-card admin-members-scope-card hidden" id="adminMembersScopeCard" hidden>
-          <div class="admin-table-head admin-table-head-compact">
-            <div>
-              <p class="eyebrow-label" id="adminMembersScopeEyebrow">Showing</p>
-              <strong id="adminMembersScopeTitle">Filtered members</strong>
-            </div>
-            <button type="button" class="secondary-btn admin-inline-btn" id="adminMembersScopeClearBtn">Clear</button>
-          </div>
-          <p class="admin-inline-note" id="adminMembersScopeNote">Members matching this dashboard insight.</p>
+        <section class="admin-card admin-search-card">
+          <label class="field-label" for="adminMemberFilter">Filter members</label>
+          <select id="adminMemberFilter" class="input admin-filter-select">
+            <option value="all">All members</option>
+            <option value="practiced_last_7_days">Practiced in last 7 days</option>
+            <option value="active_last_7_days">Active members in last 7 days</option>
+            <option value="overdue_payments">Overdue payments</option>
+            <option value="payments_due_soon">Payments due in next 7 days</option>
+          </select>
         </section>
 
         <section class="admin-card admin-search-card">

@@ -4685,12 +4685,9 @@ input {
   font: inherit;
 }
 
-.admin-members-scope-card.hidden {
-  display: none !important;
-}
-
-.admin-table-head-compact {
-  margin-bottom: 8px;
+.admin-filter-select {
+  appearance: none;
+  cursor: pointer;
 }
 
 .admin-tab.is-active {

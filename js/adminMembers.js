@@ -1,14 +1,11 @@
 const adminMembersListEl = document.getElementById("adminMembersList");
 const adminMemberSearchEl = document.getElementById("adminMemberSearch");
 const adminMemberResultsEl = document.getElementById("adminMemberResults");
-const adminMembersScopeCardEl = document.getElementById("adminMembersScopeCard");
-const adminMembersScopeEyebrowEl = document.getElementById("adminMembersScopeEyebrow");
-const adminMembersScopeTitleEl = document.getElementById("adminMembersScopeTitle");
-const adminMembersScopeNoteEl = document.getElementById("adminMembersScopeNote");
-const adminMembersScopeClearBtnEl = document.getElementById("adminMembersScopeClearBtn");
+const adminMemberFilterEl = document.getElementById("adminMemberFilter");
 
 let allAdminMembers = [];
-let activeAdminMembersPreset = null;
+let adminPracticeLogDatesByUser = new Map();
+let adminMembershipsByUser = new Map();
 
 function calculateAdminStreak(practiceDates) {
   const dates = [...new Set(practiceDates)].sort().reverse();
@@ -49,7 +46,7 @@ function renderMembers(members) {
     return;
   }
 
-  adminMemberResultsEl.textContent = activeAdminMembersPreset?.resultLabel || `${members.length} member${members.length === 1 ? "" : "s"}`;
+  adminMemberResultsEl.textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
 
   if (!members.length) {
     adminMembersListEl.innerHTML = '<div class="admin-empty-state">No matching members found.</div>';
@@ -72,31 +69,79 @@ function renderMembers(members) {
     .join("");
 }
 
-function renderMembersScope() {
-  if (!adminMembersScopeCardEl || !adminMembersScopeTitleEl || !adminMembersScopeNoteEl || !adminMembersScopeEyebrowEl) {
-    return;
-  }
-
-  const hasPreset = Boolean(activeAdminMembersPreset);
-  adminMembersScopeCardEl.classList.toggle("hidden", !hasPreset);
-  adminMembersScopeCardEl.hidden = !hasPreset;
-
-  if (!hasPreset) {
-    return;
-  }
-
-  adminMembersScopeEyebrowEl.textContent = "Showing";
-  adminMembersScopeTitleEl.textContent = activeAdminMembersPreset.title || "Filtered members";
-  adminMembersScopeNoteEl.textContent = activeAdminMembersPreset.note || "Members matching this dashboard insight.";
+function getAdminTodayIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function getMembersFromActivePreset(members) {
-  if (!activeAdminMembersPreset?.memberIds?.length) {
+function getAdminIsoDateDaysAgo(daysAgo) {
+  const baseDate = new Date();
+  baseDate.setHours(0, 0, 0, 0);
+  baseDate.setDate(baseDate.getDate() - daysAgo);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function getFilteredAdminMembers(members) {
+  const filterValue = String(adminMemberFilterEl?.value || "all");
+  const todayIso = getAdminTodayIso();
+  const weekStartIso = getAdminIsoDateDaysAgo(6);
+  const dueSoonCutoffIso = getAdminIsoDateDaysAgo(-7);
+
+  if (filterValue === "all") {
     return members;
   }
 
-  const allowedIds = new Set(activeAdminMembersPreset.memberIds);
-  return members.filter((member) => allowedIds.has(member.id));
+  if (filterValue === "practiced_last_7_days" || filterValue === "active_last_7_days") {
+    return members.filter((member) => {
+      const dates = adminPracticeLogDatesByUser.get(member.id) || [];
+      return dates.some((date) => date >= weekStartIso && date <= todayIso);
+    });
+  }
+
+  if (filterValue === "overdue_payments") {
+    return members.filter((member) => {
+      const membership = adminMembershipsByUser.get(member.id);
+      if (!membership) {
+        return false;
+      }
+
+      const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+      if (planCode === "none") {
+        return false;
+      }
+
+      const status = String(membership.status || "inactive").trim().toLowerCase();
+      if (status === "past_due") {
+        return true;
+      }
+
+      const dueDate = String(membership.current_period_end || "").slice(0, 10);
+      return Boolean(dueDate) && dueDate < todayIso && ["active", "cancelled", "expired"].includes(status);
+    });
+  }
+
+  if (filterValue === "payments_due_soon") {
+    return members.filter((member) => {
+      const membership = adminMembershipsByUser.get(member.id);
+      if (!membership) {
+        return false;
+      }
+
+      const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+      if (planCode === "none") {
+        return false;
+      }
+
+      const status = String(membership.status || "inactive").trim().toLowerCase();
+      const dueDate = String(membership.current_period_end || "").slice(0, 10);
+      if (!dueDate || dueDate < todayIso || !["active", "past_due"].includes(status)) {
+        return false;
+      }
+
+      return dueDate <= dueSoonCutoffIso;
+    });
+  }
+
+  return members;
 }
 
 function applyMemberFilter() {
@@ -105,9 +150,8 @@ function applyMemberFilter() {
   }
 
   const query = String(adminMemberSearchEl.value || "").trim().toLowerCase();
-  const scopedMembers = getMembersFromActivePreset(allAdminMembers);
+  const scopedMembers = getFilteredAdminMembers(allAdminMembers);
   if (!query) {
-    renderMembersScope();
     renderMembers(scopedMembers);
     return;
   }
@@ -116,32 +160,7 @@ function applyMemberFilter() {
     member.displayName.toLowerCase().includes(query) || member.id.toLowerCase().includes(query),
   );
 
-  renderMembersScope();
   renderMembers(filteredMembers);
-}
-
-function clearAdminMembersPreset() {
-  activeAdminMembersPreset = null;
-  renderMembersScope();
-  applyMemberFilter();
-}
-
-function applyAdminMembersPreset(preset) {
-  activeAdminMembersPreset = preset && typeof preset === "object"
-    ? {
-      title: String(preset.title || "Filtered members"),
-      note: String(preset.note || ""),
-      resultLabel: String(preset.resultLabel || ""),
-      memberIds: Array.isArray(preset.memberIds) ? [...new Set(preset.memberIds.filter(Boolean))] : [],
-    }
-    : null;
-
-  if (adminMemberSearchEl) {
-    adminMemberSearchEl.value = "";
-  }
-
-  renderMembersScope();
-  applyMemberFilter();
 }
 
 async function loadAdminMembers() {
@@ -156,16 +175,22 @@ async function loadAdminMembers() {
 
   window.appAnalytics?.identify(adminUser.id);
 
-  const [profiles, practiceLogsResult] = await Promise.all([
+  const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
     fetchAllProfiles(),
     supabaseClient.from("practice_logs").select("user_id, date"),
+    supabaseClient.from("memberships").select("user_id, plan_code, status, current_period_end"),
   ]);
 
   if (practiceLogsResult.error) {
     throw practiceLogsResult.error;
   }
 
+  if (membershipsResult.error && membershipsResult.error.code !== "42P01") {
+    throw membershipsResult.error;
+  }
+
   const practiceLogs = practiceLogsResult.data || [];
+  const memberships = membershipsResult.data || [];
   const practiceMap = new Map();
 
   practiceLogs.forEach((row) => {
@@ -174,6 +199,13 @@ async function loadAdminMembers() {
     }
     practiceMap.get(row.user_id).push(row.date);
   });
+
+  adminPracticeLogDatesByUser = practiceMap;
+  adminMembershipsByUser = new Map(
+    memberships
+      .filter((membership) => membership?.user_id)
+      .map((membership) => [membership.user_id, membership]),
+  );
 
   allAdminMembers = profiles
     .map((profileRow) => {
@@ -196,7 +228,6 @@ async function loadAdminMembers() {
       return a.displayName.localeCompare(b.displayName);
     });
 
-  renderMembersScope();
   applyMemberFilter();
 }
 
@@ -204,12 +235,21 @@ if (adminMemberSearchEl) {
   adminMemberSearchEl.addEventListener("input", applyMemberFilter);
 }
 
-if (adminMembersScopeClearBtnEl) {
-  adminMembersScopeClearBtnEl.addEventListener("click", clearAdminMembersPreset);
+if (adminMemberFilterEl) {
+  adminMemberFilterEl.addEventListener("change", applyMemberFilter);
 }
 
-window.addEventListener("admin-members-preset", (event) => {
-  applyAdminMembersPreset(event.detail || null);
+window.addEventListener("admin-members-filter", (event) => {
+  const nextFilter = String(event.detail?.filter || "all");
+  if (adminMemberFilterEl) {
+    adminMemberFilterEl.value = nextFilter;
+  }
+
+  if (adminMemberSearchEl) {
+    adminMemberSearchEl.value = "";
+  }
+
+  applyMemberFilter();
 });
 
 loadAdminMembers().catch((error) => {

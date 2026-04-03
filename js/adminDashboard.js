@@ -19,10 +19,10 @@ const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 const adminActivatedTouchKeys = new WeakMap();
 const adminDashboardInsightState = {
-  weeklyPractice: null,
-  weeklyActiveMembers: null,
-  overduePayments: null,
-  dueSoonPayments: null,
+  weeklyPractice: "practiced_last_7_days",
+  weeklyActiveMembers: "active_last_7_days",
+  overduePayments: "overdue_payments",
+  dueSoonPayments: "payments_due_soon",
 };
 
 function setActiveAdminHomeTab(tabName, options = {}) {
@@ -183,41 +183,17 @@ function renderAdminInsights(practiceLogs, memberships) {
     ? 'Memberships renewing within the next 7 days.'
     : 'No renewals due in the next 7 days.';
 
-  adminDashboardInsightState.weeklyPractice = {
-    title: 'Members with practice in the last 7 days',
-    note: `Showing members who practiced between ${weekStartIso} and ${todayIso}.`,
-    resultLabel: `${weeklyActiveMembers.size} practicing member${weeklyActiveMembers.size === 1 ? "" : "s"}`,
-    memberIds: [...weeklyActiveMembers],
-  };
-  adminDashboardInsightState.weeklyActiveMembers = {
-    title: 'Active members in the last 7 days',
-    note: 'Members who recorded at least one practice this week.',
-    resultLabel: `${weeklyActiveMembers.size} active member${weeklyActiveMembers.size === 1 ? "" : "s"}`,
-    memberIds: [...weeklyActiveMembers],
-  };
-  adminDashboardInsightState.overduePayments = {
-    title: 'Overdue payments',
-    note: 'Members with overdue renewals or memberships marked past due.',
-    resultLabel: `${overdueMemberships.length} overdue payment${overdueMemberships.length === 1 ? "" : "s"}`,
-    memberIds: overdueMemberships.map((membership) => membership.user_id).filter(Boolean),
-  };
-  adminDashboardInsightState.dueSoonPayments = {
-    title: 'Payments due in the next 7 days',
-    note: 'Members whose renewal date falls within the next 7 days.',
-    resultLabel: `${dueSoonMemberships.length} due soon`,
-    memberIds: dueSoonMemberships.map((membership) => membership.user_id).filter(Boolean),
-  };
 }
 
-function openAdminMembersPreset(presetKey) {
-  const preset = adminDashboardInsightState[presetKey];
-  if (!preset) {
+function openAdminMembersFilter(filterKey) {
+  const filterValue = adminDashboardInsightState[filterKey];
+  if (!filterValue) {
     return;
   }
 
   setActiveAdminHomeTab("members");
-  window.dispatchEvent(new CustomEvent("admin-members-preset", {
-    detail: preset,
+  window.dispatchEvent(new CustomEvent("admin-members-filter", {
+    detail: { filter: filterValue },
   }));
 }
 
@@ -235,7 +211,7 @@ function initializeAdminInsightCards() {
     }
 
     bindAdminActivation(element, () => {
-      openAdminMembersPreset(presetKey);
+      openAdminMembersFilter(presetKey);
     });
   });
 }
