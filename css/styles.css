@@ -3418,6 +3418,29 @@ input {
   margin-bottom: 8px;
 }
 
+.admin-filter-label {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-filter-label-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(249, 239, 227, 0.92);
+  color: var(--accent-deep);
+  box-shadow: inset 0 0 0 1px rgba(190, 108, 44, 0.08);
+}
+
+.admin-filter-label-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
 .admin-members-directory-card {
   margin-top: 24px;
 }
@@ -4708,6 +4731,15 @@ input {
 .admin-filter-select {
   appearance: none;
   cursor: pointer;
+  padding-right: 42px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(103, 89, 76, 0.95) 50%),
+    linear-gradient(135deg, rgba(103, 89, 76, 0.95) 50%, transparent 50%);
+  background-position:
+    calc(100% - 22px) calc(50% - 1px),
+    calc(100% - 16px) calc(50% - 1px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
 }
 
 @media (max-width: 720px) {

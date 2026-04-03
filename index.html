@@ -103,7 +103,16 @@
             <input id="adminMemberSearch" class="input" type="search" placeholder="Search by name or member ID">
           </div>
           <div class="admin-members-toolbar-field admin-members-toolbar-filter">
-            <label class="field-label" for="adminMemberFilter">Filter members</label>
+            <label class="field-label admin-filter-label" for="adminMemberFilter">
+              <span class="admin-filter-label-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path d="M3.5 5.5H16.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                  <path d="M6.5 10H13.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                  <path d="M8.5 14.5H11.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span>Filter members</span>
+            </label>
             <select id="adminMemberFilter" class="input admin-filter-select">
               <option value="all">All members</option>
               <option value="practiced_last_7_days">Practiced in last 7 days</option>
