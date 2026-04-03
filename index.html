@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Admin" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./images/apple-touch-icon.png" />
-  <title>Admin Dashboard</title>
+  <title>YogaUnnati Admin Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,57 +29,83 @@
       </div>
 
       <div class="admin-tabs" role="tablist" aria-label="Admin navigation">
-        <a href="index.html" class="admin-tab is-active" aria-current="page">Dashboard</a>
-        <a href="members.html" class="admin-tab">Members</a>
+        <button type="button" class="admin-tab is-active" data-admin-home-tab="dashboard" aria-selected="true">Dashboard</button>
+        <button type="button" class="admin-tab" data-admin-home-tab="members" aria-selected="false">Members</button>
       </div>
 
-      <section class="admin-stat-grid" id="adminStatsGrid">
-        <article class="admin-stat-card">
-          <span class="eyebrow-label">Members</span>
-          <strong id="adminMemberCount">0</strong>
-          <span>Total profiles</span>
-        </article>
-        <article class="admin-stat-card">
-          <span class="eyebrow-label">Practiced Today</span>
-          <strong id="adminTodayCount">0</strong>
-          <span>Members active today</span>
-        </article>
-        <article class="admin-stat-card">
-          <span class="eyebrow-label">Practice Logs</span>
-          <strong id="adminPracticeLogCount">0</strong>
-          <span>Total recorded check-ins</span>
-        </article>
+      <section class="admin-home-panel is-active" data-admin-home-panel="dashboard">
+        <section class="admin-stat-grid" id="adminStatsGrid">
+          <article class="admin-stat-card">
+            <span class="eyebrow-label">Members</span>
+            <strong id="adminMemberCount">0</strong>
+            <span>Total profiles</span>
+          </article>
+          <article class="admin-stat-card">
+            <span class="eyebrow-label">Practiced Today</span>
+            <strong id="adminTodayCount">0</strong>
+            <span>Members active today</span>
+          </article>
+          <article class="admin-stat-card">
+            <span class="eyebrow-label">Practice Logs</span>
+            <strong id="adminPracticeLogCount">0</strong>
+            <span>Total recorded check-ins</span>
+          </article>
+        </section>
+
+        <section class="admin-card-grid">
+          <article class="admin-card">
+            <div class="admin-card-head">
+              <div>
+                <p class="eyebrow-label">Fast Actions</p>
+                <h2>Admin shortcuts</h2>
+              </div>
+            </div>
+            <div class="admin-link-list">
+              <a href="index.html#members" class="admin-link-card">
+                <strong>Member Directory</strong>
+                <span>Search members, review streaks, and open detailed records.</span>
+              </a>
+              <a href="create-member.html" class="admin-link-card">
+                <strong>Create Account</strong>
+                <span>Use the existing member-creation page when you need to onboard someone new.</span>
+              </a>
+            </div>
+          </article>
+
+          <article class="admin-card">
+            <div class="admin-card-head">
+              <div>
+                <p class="eyebrow-label">Today</p>
+                <h2>Practice pulse</h2>
+              </div>
+            </div>
+            <div id="adminPracticePulse" class="admin-empty-state">Loading today&apos;s activity...</div>
+          </article>
+        </section>
       </section>
 
-      <section class="admin-card-grid">
-        <article class="admin-card">
-          <div class="admin-card-head">
-            <div>
-              <p class="eyebrow-label">Fast Actions</p>
-              <h2>Admin shortcuts</h2>
-            </div>
+      <section class="admin-home-panel" data-admin-home-panel="members" hidden>
+        <div class="profile-page-header admin-list-header">
+          <div>
+            <h2 class="page-title">Members</h2>
           </div>
-          <div class="admin-link-list">
-            <a href="members.html" class="admin-link-card">
-              <strong>Member Directory</strong>
-              <span>Search members, review streaks, and open detailed records.</span>
-            </a>
-            <a href="create-member.html" class="admin-link-card">
-              <strong>Create Account</strong>
-              <span>Use the existing member-creation page when you need to onboard someone new.</span>
-            </a>
-          </div>
-        </article>
+          <a href="create-member.html" class="secondary-btn admin-inline-btn">Add Member</a>
+        </div>
 
-        <article class="admin-card">
-          <div class="admin-card-head">
-            <div>
-              <p class="eyebrow-label">Today</p>
-              <h2>Practice pulse</h2>
-            </div>
+        <section class="admin-card admin-search-card">
+          <label class="field-label" for="adminMemberSearch">Search members</label>
+          <input id="adminMemberSearch" class="input" type="search" placeholder="Search by name or member ID">
+        </section>
+
+        <section class="admin-card">
+          <div class="admin-table-head">
+            <p class="eyebrow-label">Directory</p>
+            <span id="adminMemberResults" class="admin-results-count">0 members</span>
           </div>
-          <div id="adminPracticePulse" class="admin-empty-state">Loading today&apos;s activity...</div>
-        </article>
+          <div id="adminMembersList" class="admin-list-wrap">
+            <div class="admin-empty-state">Loading members...</div>
+          </div>
+        </section>
       </section>
     </div>
   </div>
@@ -93,6 +119,7 @@
   <script src="./js/pwa.js"></script>
   <script src="./js/pageTransition.js"></script>
   <script src="./js/adminDashboard.js"></script>
+  <script src="./js/adminMembers.js"></script>
 </body>
 </html>
 

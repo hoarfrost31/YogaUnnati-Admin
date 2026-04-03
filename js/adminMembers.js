@@ -39,6 +39,10 @@ function formatAdminDate(dateString) {
 }
 
 function renderMembers(members) {
+  if (!adminMemberResultsEl || !adminMembersListEl) {
+    return;
+  }
+
   adminMemberResultsEl.textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
 
   if (!members.length) {
@@ -51,7 +55,7 @@ function renderMembers(members) {
       <a href="${window.adminRoutes?.member(member.id) || `admin-member.html?uid=${encodeURIComponent(member.id)}`}" class="admin-member-row">
         <div class="admin-member-primary">
           <strong>${member.displayName}</strong>
-          <span>${member.level} · ${member.totalDays} total days · ${member.streak} day streak</span>
+          <span>${member.level} | ${member.totalDays} total days | ${member.streak} day streak</span>
         </div>
         <div class="admin-member-meta">
           <span>${formatAdminDate(member.lastPractice)}</span>
@@ -63,6 +67,10 @@ function renderMembers(members) {
 }
 
 function applyMemberFilter() {
+  if (!adminMemberSearchEl) {
+    return;
+  }
+
   const query = String(adminMemberSearchEl.value || "").trim().toLowerCase();
   if (!query) {
     renderMembers(allAdminMembers);
@@ -70,13 +78,17 @@ function applyMemberFilter() {
   }
 
   const filteredMembers = allAdminMembers.filter((member) =>
-    member.displayName.toLowerCase().includes(query) || member.id.toLowerCase().includes(query)
+    member.displayName.toLowerCase().includes(query) || member.id.toLowerCase().includes(query),
   );
 
   renderMembers(filteredMembers);
 }
 
 async function loadAdminMembers() {
+  if (!adminMembersListEl || !adminMemberSearchEl || !adminMemberResultsEl) {
+    return;
+  }
+
   const adminUser = await window.adminAccess.requireAdminAccess();
   if (!adminUser) {
     return;
@@ -127,10 +139,13 @@ async function loadAdminMembers() {
   renderMembers(allAdminMembers);
 }
 
-adminMemberSearchEl.addEventListener("input", applyMemberFilter);
+if (adminMemberSearchEl) {
+  adminMemberSearchEl.addEventListener("input", applyMemberFilter);
+}
 
 loadAdminMembers().catch((error) => {
   console.error(error);
-  adminMembersListEl.innerHTML = '<div class="admin-empty-state">Could not load members.</div>';
+  if (adminMembersListEl) {
+    adminMembersListEl.innerHTML = '<div class="admin-empty-state">Could not load members.</div>';
+  }
 });
-

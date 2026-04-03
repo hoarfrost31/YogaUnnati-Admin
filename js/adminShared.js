@@ -5,7 +5,7 @@ window.adminRoutes = {
   isScopedApp: true,
   login: "login.html",
   dashboard: "index.html",
-  members: "members.html",
+  members: "index.html#members",
   createMember: "create-member.html",
   appHome: "https://yogaunnati.app",
   member(memberId) {
@@ -49,14 +49,28 @@ function writeAdminAccessRecord(record) {
   }
 }
 
-async function resolveAdminUserWithRetry() {
-  const attempts = [
-    { forceRefresh: false, delay: 0 },
-    { forceRefresh: true, delay: 150 },
-    { forceRefresh: true, delay: 250 },
-    { forceRefresh: true, delay: 400 },
-    { forceRefresh: true, delay: 600 },
-  ];
+async function resolveAdminUserWithRetry(options = {}) {
+  const shouldWaitForRestore = Boolean(options.shouldWaitForRestore);
+  const attempts = shouldWaitForRestore
+    ? [
+      { forceRefresh: false, delay: 0 },
+      { forceRefresh: true, delay: 200 },
+      { forceRefresh: true, delay: 400 },
+      { forceRefresh: true, delay: 700 },
+      { forceRefresh: true, delay: 1000 },
+      { forceRefresh: true, delay: 1500 },
+    ]
+    : [
+      { forceRefresh: false, delay: 0 },
+      { forceRefresh: true, delay: 150 },
+      { forceRefresh: true, delay: 250 },
+      { forceRefresh: true, delay: 400 },
+      { forceRefresh: true, delay: 600 },
+    ];
+
+  if (shouldWaitForRestore) {
+    await window.appAuth?.waitForInitialSession?.({ timeoutMs: 3500 });
+  }
 
   for (const attempt of attempts) {
     if (attempt.delay) {
@@ -109,8 +123,9 @@ window.adminAccess = {
   },
   async requireAdminAccess(options = {}) {
     const redirectTo = Object.prototype.hasOwnProperty.call(options, "redirectTo") ? options.redirectTo : window.adminRoutes.login;
-    const user = await resolveAdminUserWithRetry();
     const record = readAdminAccessRecord();
+    const shouldWaitForRestore = Boolean(record?.email && isAllowedAdminEmail(record.email) && window.appAuth?.hasPersistedSession?.());
+    const user = await resolveAdminUserWithRetry({ shouldWaitForRestore });
     const email = normalizeAdminEmail(user?.email);
 
     if (!user?.id || !isAllowedAdminEmail(email)) {

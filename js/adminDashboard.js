@@ -2,6 +2,53 @@ const adminMemberCountEl = document.getElementById("adminMemberCount");
 const adminTodayCountEl = document.getElementById("adminTodayCount");
 const adminPracticeLogCountEl = document.getElementById("adminPracticeLogCount");
 const adminPracticePulseEl = document.getElementById("adminPracticePulse");
+const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-tab]"));
+const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
+
+function setActiveAdminHomeTab(tabName, options = {}) {
+  const updateHash = options.updateHash !== false;
+
+  adminHomeTabEls.forEach((button) => {
+    const isActive = button.dataset.adminHomeTab === tabName;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+
+  adminHomePanelEls.forEach((panel) => {
+    const isActive = panel.dataset.adminHomePanel === tabName;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
+
+  if (updateHash) {
+    const nextHash = tabName === "members" ? "#members" : "#dashboard";
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, "", nextHash);
+    }
+  }
+}
+
+function getAdminHomeTabFromHash() {
+  return window.location.hash.toLowerCase() === "#members" ? "members" : "dashboard";
+}
+
+function initializeAdminHomeTabs() {
+  if (!adminHomeTabEls.length || !adminHomePanelEls.length) {
+    return;
+  }
+
+  adminHomeTabEls.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveAdminHomeTab(button.dataset.adminHomeTab || "dashboard");
+    });
+  });
+
+  window.addEventListener("hashchange", () => {
+    setActiveAdminHomeTab(getAdminHomeTabFromHash(), { updateHash: false });
+  });
+
+  setActiveAdminHomeTab(getAdminHomeTabFromHash(), { updateHash: false });
+}
 
 function formatAdminDate(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -12,6 +59,10 @@ function formatAdminDate(dateString) {
 }
 
 async function loadAdminDashboard() {
+  if (!adminMemberCountEl || !adminTodayCountEl || !adminPracticeLogCountEl || !adminPracticePulseEl) {
+    return;
+  }
+
   const adminUser = await window.adminAccess.requireAdminAccess();
   if (!adminUser) {
     return;
@@ -33,7 +84,7 @@ async function loadAdminDashboard() {
     practiceLogs
       .filter((row) => row.date === new Date().toISOString().slice(0, 10))
       .map((row) => row.user_id)
-      .filter(Boolean)
+      .filter(Boolean),
   );
 
   adminMemberCountEl.textContent = String(profiles.length);
@@ -74,14 +125,17 @@ async function loadAdminDashboard() {
     .map((member) => `
       <a href="${window.adminRoutes?.member(member.id) || `admin-member.html?uid=${encodeURIComponent(member.id)}`}" class="admin-link-card">
         <strong>${member.displayName}</strong>
-        <span>${member.totalDays} total days · ${member.milestone}${member.lastPractice ? ` · Last on ${formatAdminDate(member.lastPractice)}` : ""}${member.practicedToday ? " · Practiced today" : ""}</span>
+        <span>${member.totalDays} total days | ${member.milestone}${member.lastPractice ? ` | Last on ${formatAdminDate(member.lastPractice)}` : ""}${member.practicedToday ? " | Practiced today" : ""}</span>
       </a>
     `)
     .join("");
 }
 
+initializeAdminHomeTabs();
+
 loadAdminDashboard().catch((error) => {
   console.error(error);
-  adminPracticePulseEl.innerHTML = '<div class="admin-empty-state">Could not load dashboard data.</div>';
+  if (adminPracticePulseEl) {
+    adminPracticePulseEl.innerHTML = '<div class="admin-empty-state">Could not load dashboard data.</div>';
+  }
 });
-
