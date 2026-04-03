@@ -3402,6 +3402,22 @@ input {
   margin-top: 18px;
 }
 
+.admin-members-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: end;
+}
+
+.admin-members-toolbar-field {
+  min-width: 0;
+}
+
+.admin-members-toolbar-field .field-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
 .admin-table-head {
   display: flex;
   justify-content: space-between;
@@ -4688,6 +4704,13 @@ input {
 .admin-filter-select {
   appearance: none;
   cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .admin-members-toolbar {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 .admin-tab.is-active {
