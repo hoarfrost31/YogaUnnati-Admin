@@ -4,6 +4,7 @@ const adminPracticeLogCountEl = document.getElementById("adminPracticeLogCount")
 const adminPracticePulseEl = document.getElementById("adminPracticePulse");
 const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-tab]"));
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
+const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 
 function setActiveAdminHomeTab(tabName, options = {}) {
   const updateHash = options.updateHash !== false;
@@ -45,6 +46,12 @@ function initializeAdminHomeTabs() {
 
   window.addEventListener("hashchange", () => {
     setActiveAdminHomeTab(getAdminHomeTabFromHash(), { updateHash: false });
+  });
+
+  adminHomeTabTargetEls.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveAdminHomeTab(button.dataset.adminHomeTabTarget || "dashboard");
+    });
   });
 
   setActiveAdminHomeTab(getAdminHomeTabFromHash(), { updateHash: false });

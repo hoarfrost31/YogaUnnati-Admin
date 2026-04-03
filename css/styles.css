@@ -4673,6 +4673,14 @@ input {
   display: none !important;
 }
 
+.admin-link-card-button {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
 .admin-tab.is-active {
   color: #fff;
   background: linear-gradient(90deg, var(--accent-deep) 0%, #d99258 100%);
