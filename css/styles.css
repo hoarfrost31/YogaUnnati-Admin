@@ -3350,17 +3350,44 @@ input {
 }
 
 .admin-link-card,
-.admin-member-row {
+.admin-member-row,
+.admin-member-row-link {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   align-items: center;
+}
+
+.admin-link-card,
+.admin-member-row {
   padding: 14px 15px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: var(--shadow-soft);
+}
+
+.admin-link-card,
+.admin-member-row-link {
   text-decoration: none;
   color: var(--text);
+}
+
+.admin-member-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-member-row-link {
+  min-width: 0;
+}
+
+.admin-member-row-action {
+  align-self: flex-start;
+  width: auto;
+}
+
+.admin-member-row-note {
+  margin-top: -2px;
 }
 
 .admin-link-card strong,
@@ -3567,6 +3594,7 @@ input {
 
   .admin-member-row,
   .admin-link-card,
+  .admin-member-row-link,
   .admin-reminder-row {
     flex-direction: column;
     align-items: flex-start;

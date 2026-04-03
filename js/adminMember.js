@@ -24,6 +24,9 @@ const adminMemberMembershipStartEl = document.getElementById("adminMemberMembers
 const adminMemberMembershipRenewalEl = document.getElementById("adminMemberMembershipRenewal");
 const adminMemberSaveMembershipBtnEl = document.getElementById("adminMemberSaveMembershipBtn");
 const adminMemberMembershipMsgEl = document.getElementById("adminMemberMembershipMsg");
+const adminMemberReminderCardEl = document.getElementById("adminMemberReminderCard");
+const adminMemberReminderNoteEl = document.getElementById("adminMemberReminderNote");
+const adminMemberReminderBtnEl = document.getElementById("adminMemberReminderBtn");
 const adminMemberPasswordInputEl = document.getElementById("adminMemberPasswordInput");
 const adminMemberSetPasswordBtnEl = document.getElementById("adminMemberSetPasswordBtn");
 const adminMemberPasswordMsgEl = document.getElementById("adminMemberPasswordMsg");
@@ -177,6 +180,46 @@ function formatAdminDateTime(dateTimeString) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function normalizeAdminWhatsAppPhone(phone = "") {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+  return "";
+}
+
+function isAdminMembershipOverdue(membershipRow) {
+  if (!membershipRow) {
+    return false;
+  }
+
+  const planCode = String(membershipRow.plan_code || "none").trim().toLowerCase();
+  if (planCode === "none") {
+    return false;
+  }
+
+  const status = String(membershipRow.status || "inactive").trim().toLowerCase();
+  if (status === "past_due") {
+    return true;
+  }
+
+  const dueDate = String(membershipRow.current_period_end || "").slice(0, 10);
+  return Boolean(dueDate) && dueDate < getCurrentIso().slice(0, 10) && ["active", "cancelled", "expired"].includes(status);
+}
+
+function buildAdminOverdueReminderMessage(displayName, dueDate) {
+  const dueDateText = dueDate ? ` which was due on ${formatAdminDate(dueDate)}` : "";
+  return [
+    `Namaste ${displayName},`,
+    ``,
+    `This is a reminder from YogaUnnati that your membership payment is overdue${dueDateText}.`,
+    `Please renew at the earliest to continue smoothly.`,
+    ``,
+    `If you have already completed the payment, please ignore this message.`,
+    ``,
+    `Thank you.`,
+  ].join("\n");
 }
 
 function formatIsoDate(date) {
@@ -362,6 +405,32 @@ function renderMembershipEditor(membershipRow) {
   adminMemberMembershipStatusEl.value = status;
   adminMemberMembershipStartEl.value = formatDateForInput(membershipRow?.started_at || "");
   adminMemberMembershipRenewalEl.value = formatDateForInput(membershipRow?.current_period_end || "");
+}
+
+function renderAdminMemberReminder(profileRow, membershipRow, displayName) {
+  if (!adminMemberReminderCardEl || !adminMemberReminderBtnEl || !adminMemberReminderNoteEl) {
+    return;
+  }
+
+  const isOverdue = isAdminMembershipOverdue(membershipRow);
+  const dueDate = String(membershipRow?.current_period_end || "").slice(0, 10);
+  const phone = normalizeAdminWhatsAppPhone(profileRow?.phone || "");
+  const canSend = isOverdue && Boolean(phone);
+
+  adminMemberReminderCardEl.hidden = !isOverdue;
+  if (!isOverdue) {
+    adminMemberReminderBtnEl.href = "#";
+    return;
+  }
+
+  adminMemberReminderBtnEl.classList.toggle("disabled", !canSend);
+  adminMemberReminderBtnEl.setAttribute("aria-disabled", canSend ? "false" : "true");
+  adminMemberReminderBtnEl.href = canSend
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(buildAdminOverdueReminderMessage(displayName, dueDate))}`
+    : "#";
+  adminMemberReminderNoteEl.textContent = canSend
+    ? "Send a WhatsApp reminder for this overdue membership."
+    : "Add a phone number to this member profile before sending a reminder.";
 }
 
 function getHistorySourceLabel(source) {
@@ -742,6 +811,7 @@ async function loadAdminMember() {
 
   renderMembershipSummary(membershipRow);
   renderMembershipEditor(membershipRow);
+  renderAdminMemberReminder(profile, membershipRow, displayName);
   renderMembershipHistory(membershipCycles);
   renderAdminLoginAccess(loginAccessRow);
   renderAdminPracticeCalendar();
@@ -801,6 +871,9 @@ loadAdminMember().catch((error) => {
   }
   if (adminMemberReferenceLineEl) {
     adminMemberReferenceLineEl.textContent = 'Member ID: -';
+  }
+  if (adminMemberReminderCardEl) {
+    adminMemberReminderCardEl.hidden = true;
   }
   if (adminPracticeCalendarGridEl) {
     adminPracticeCalendarGridEl.innerHTML = '<div class="admin-empty-state">Calendar could not be loaded.</div>';

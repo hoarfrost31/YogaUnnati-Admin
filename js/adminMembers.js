@@ -7,6 +7,47 @@ let allAdminMembers = [];
 let adminPracticeLogDatesByUser = new Map();
 let adminMembershipsByUser = new Map();
 
+function normalizeAdminWhatsAppPhone(phone = "") {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+  return "";
+}
+
+function buildAdminOverdueReminderMessage(member) {
+  const dueDateText = member.membershipDueDate ? ` which was due on ${formatAdminDate(member.membershipDueDate)}` : "";
+  return [
+    `Namaste ${member.displayName},`,
+    ``,
+    `This is a reminder from YogaUnnati that your membership payment is overdue${dueDateText}.`,
+    `Please renew at the earliest to continue smoothly.`,
+    ``,
+    `If you have already completed the payment, please ignore this message.`,
+    ``,
+    `Thank you.`,
+  ].join("\n");
+}
+
+function isAdminMembershipOverdue(membership) {
+  if (!membership) {
+    return false;
+  }
+
+  const todayIso = getAdminTodayIso();
+  const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+  if (planCode === "none") {
+    return false;
+  }
+
+  const status = String(membership.status || "inactive").trim().toLowerCase();
+  if (status === "past_due") {
+    return true;
+  }
+
+  const dueDate = String(membership.current_period_end || "").slice(0, 10);
+  return Boolean(dueDate) && dueDate < todayIso && ["active", "cancelled", "expired"].includes(status);
+}
+
 function formatAdminDateTime(dateTimeString) {
   if (!dateTimeString) {
     return "No recent app activity";
@@ -73,19 +114,36 @@ function renderMembers(members) {
   }
 
   adminMembersListEl.innerHTML = members
-    .map((member) => `
-      <a href="${window.adminRoutes?.member(member.id) || `admin-member.html?uid=${encodeURIComponent(member.id)}`}" class="admin-member-row">
-        <div class="admin-member-primary">
-          <strong>${member.displayName}</strong>
-          <span>${member.level} | ${member.totalDays} total days | ${member.streak} day streak</span>
+    .map((member) => {
+      const memberUrl = window.adminRoutes?.member(member.id) || `admin-member.html?uid=${encodeURIComponent(member.id)}`;
+      const whatsappPhone = normalizeAdminWhatsAppPhone(member.phone);
+      const canSendReminder = member.isOverdue && Boolean(whatsappPhone);
+      const whatsappUrl = canSendReminder
+        ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(buildAdminOverdueReminderMessage(member))}`
+        : "";
+
+      return `
+        <div class="admin-member-row">
+          <a href="${memberUrl}" class="admin-member-row-link">
+            <div class="admin-member-primary">
+              <strong>${member.displayName}</strong>
+              <span>${member.level} | ${member.totalDays} total days | ${member.streak} day streak</span>
+            </div>
+            <div class="admin-member-meta">
+              <span>${formatAdminDate(member.lastPractice)}</span>
+              <span>${formatAdminDateTime(member.lastSeenAt)}</span>
+              <span class="admin-member-id">${member.id}</span>
+            </div>
+          </a>
+          ${canSendReminder
+            ? `<a href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" class="secondary-btn admin-inline-btn admin-member-row-action">WhatsApp Reminder</a>`
+            : ""}
+          ${member.isOverdue && !canSendReminder
+            ? `<span class="admin-reminder-missing admin-member-row-note">No phone for reminder</span>`
+            : ""}
         </div>
-        <div class="admin-member-meta">
-          <span>${formatAdminDate(member.lastPractice)}</span>
-          <span>${formatAdminDateTime(member.lastSeenAt)}</span>
-          <span class="admin-member-id">${member.id}</span>
-        </div>
-      </a>
-    `)
+      `;
+    })
     .join("");
 }
 
@@ -243,11 +301,14 @@ async function loadAdminMembers() {
       return {
         id: profileRow.id,
         displayName: getProfileFromRow(profileRow).displayName || DEFAULT_PROFILE_NAME,
+        phone: getProfileFromRow(profileRow).phone || "",
         totalDays: uniqueDates.length,
         streak: calculateAdminStreak(uniqueDates),
         level: milestoneState.milestone.level,
         lastPractice: uniqueDates.slice(-1)[0] || "",
         lastSeenAt: String(profileRow?.last_seen_at || ""),
+        membershipDueDate: String(adminMembershipsByUser.get(profileRow.id)?.current_period_end || "").slice(0, 10),
+        isOverdue: isAdminMembershipOverdue(adminMembershipsByUser.get(profileRow.id)),
       };
     })
     .sort((a, b) => {
