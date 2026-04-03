@@ -98,6 +98,10 @@
         </div>
 
         <section class="admin-card admin-search-card admin-members-toolbar">
+          <div class="admin-members-toolbar-field admin-members-toolbar-search">
+            <label class="field-label" for="adminMemberSearch">Search members</label>
+            <input id="adminMemberSearch" class="input" type="search" placeholder="Search by name or member ID">
+          </div>
           <div class="admin-members-toolbar-field admin-members-toolbar-filter">
             <label class="field-label" for="adminMemberFilter">Filter members</label>
             <select id="adminMemberFilter" class="input admin-filter-select">
@@ -108,13 +112,9 @@
               <option value="payments_due_soon">Payments due in next 7 days</option>
             </select>
           </div>
-          <div class="admin-members-toolbar-field admin-members-toolbar-search">
-            <label class="field-label" for="adminMemberSearch">Search members</label>
-            <input id="adminMemberSearch" class="input" type="search" placeholder="Search by name or member ID">
-          </div>
         </section>
 
-        <section class="admin-card">
+        <section class="admin-card admin-members-directory-card">
           <div class="admin-table-head">
             <p class="eyebrow-label">Directory</p>
             <span id="adminMemberResults" class="admin-results-count">0 members</span>

@@ -3404,7 +3404,7 @@ input {
 
 .admin-members-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
   gap: 14px;
   align-items: end;
 }
@@ -3416,6 +3416,10 @@ input {
 .admin-members-toolbar-field .field-label {
   display: block;
   margin-bottom: 8px;
+}
+
+.admin-members-directory-card {
+  margin-top: 24px;
 }
 
 .admin-table-head {
