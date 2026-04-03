@@ -16,11 +16,13 @@ function normalizeAdminWhatsAppPhone(phone = "") {
 
 function buildAdminOverdueReminderMessage(member) {
   const dueDateText = member.membershipDueDate ? ` which was due on ${formatAdminDate(member.membershipDueDate)}` : "";
+  const membershipUrl = `${window.adminRoutes?.appHome || "https://yogaunnati.app"}/membership.html?from=whatsapp`;
   return [
     `Namaste ${member.displayName},`,
     ``,
     `This is a reminder from YogaUnnati that your membership payment is overdue${dueDateText}.`,
     `Please renew at the earliest to continue smoothly.`,
+    `Renew here: ${membershipUrl}`,
     ``,
     `If you have already completed the payment, please ignore this message.`,
     ``,
