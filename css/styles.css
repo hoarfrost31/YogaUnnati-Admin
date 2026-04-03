@@ -3389,6 +3389,15 @@ input {
   align-items: flex-start;
 }
 
+.admin-list-header-actions {
+  justify-content: flex-end;
+}
+
+.admin-list-header .admin-inline-btn {
+  width: auto;
+  align-self: flex-start;
+}
+
 .admin-search-card {
   margin-top: 18px;
 }
