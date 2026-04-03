@@ -91,7 +91,7 @@ function getAdminMemberCacheKey(memberId) {
 }
 
 function invalidateAdminMemberCaches(memberId = "") {
-  window.adminDataCache?.remove?.("overview");
+  window.adminOverviewStore?.invalidate?.();
   if (memberId) {
     window.adminDataCache?.remove?.(getAdminMemberCacheKey(memberId));
   }

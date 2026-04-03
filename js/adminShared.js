@@ -1,6 +1,8 @@
 const ADMIN_ACCESS_KEY = "yogaunnati_admin_access_v1";
 const ADMIN_EMAILS = ["nkapse27@gmail.com"];
 const ADMIN_DATA_CACHE_PREFIX = "yogaunnati_admin_data_cache_v1:";
+const ADMIN_OVERVIEW_CACHE_KEY = "overview";
+const ADMIN_OVERVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 
 window.adminRoutes = {
   isScopedApp: true,
@@ -203,6 +205,56 @@ window.adminDataCache = {
     } catch (error) {
       console.error("Admin data cache prefix remove error:", error);
     }
+  },
+};
+
+let adminOverviewRequestPromise = null;
+
+window.adminOverviewStore = {
+  cacheKey: ADMIN_OVERVIEW_CACHE_KEY,
+  ttlMs: ADMIN_OVERVIEW_CACHE_TTL_MS,
+  readCached() {
+    return window.adminDataCache?.read?.(ADMIN_OVERVIEW_CACHE_KEY, ADMIN_OVERVIEW_CACHE_TTL_MS) || { data: null, isFresh: false, updatedAt: 0 };
+  },
+  invalidate() {
+    window.adminDataCache?.remove?.(ADMIN_OVERVIEW_CACHE_KEY);
+  },
+  async fetchRemote() {
+    const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
+      fetchAllProfiles(),
+      supabaseClient.from("practice_logs").select("user_id, date"),
+      supabaseClient.from("memberships").select("user_id, plan_code, status, current_period_end"),
+    ]);
+
+    if (practiceLogsResult.error) {
+      throw practiceLogsResult.error;
+    }
+
+    if (membershipsResult.error && membershipsResult.error.code !== "42P01") {
+      throw membershipsResult.error;
+    }
+
+    const payload = {
+      profiles,
+      practiceLogs: practiceLogsResult.data || [],
+      memberships: membershipsResult.data || [],
+    };
+
+    window.adminDataCache?.write?.(ADMIN_OVERVIEW_CACHE_KEY, payload);
+    return payload;
+  },
+  async getFresh() {
+    if (adminOverviewRequestPromise) {
+      return adminOverviewRequestPromise;
+    }
+
+    adminOverviewRequestPromise = window.adminOverviewStore
+      .fetchRemote()
+      .finally(() => {
+        adminOverviewRequestPromise = null;
+      });
+
+    return adminOverviewRequestPromise;
   },
 };
 

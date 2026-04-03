@@ -2,8 +2,6 @@ const adminMembersListEl = document.getElementById("adminMembersList");
 const adminMemberSearchEl = document.getElementById("adminMemberSearch");
 const adminMemberResultsEl = document.getElementById("adminMemberResults");
 const adminMemberFilterEl = document.getElementById("adminMemberFilter");
-const ADMIN_OVERVIEW_CACHE_KEY = "overview";
-const ADMIN_OVERVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 
 let allAdminMembers = [];
 let adminPracticeLogDatesByUser = new Map();
@@ -253,28 +251,6 @@ function applyMemberFilter() {
   renderMembers(filteredMembers);
 }
 
-async function fetchAdminOverviewData() {
-  const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
-    fetchAllProfiles(),
-    supabaseClient.from("practice_logs").select("user_id, date"),
-    supabaseClient.from("memberships").select("user_id, plan_code, status, current_period_end"),
-  ]);
-
-  if (practiceLogsResult.error) {
-    throw practiceLogsResult.error;
-  }
-
-  if (membershipsResult.error && membershipsResult.error.code !== "42P01") {
-    throw membershipsResult.error;
-  }
-
-  return {
-    profiles,
-    practiceLogs: practiceLogsResult.data || [],
-    memberships: membershipsResult.data || [],
-  };
-}
-
 function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships = [] }) {
   const practiceMap = new Map();
 
@@ -333,7 +309,7 @@ async function loadAdminMembers() {
 
   window.appAnalytics?.identify(adminUser.id);
 
-  const cachedOverview = window.adminDataCache?.read?.(ADMIN_OVERVIEW_CACHE_KEY, ADMIN_OVERVIEW_CACHE_TTL_MS) || { data: null, isFresh: false };
+  const cachedOverview = window.adminOverviewStore?.readCached?.() || { data: null, isFresh: false };
   if (cachedOverview.data) {
     hydrateAdminMembersData(cachedOverview.data);
   }
@@ -342,8 +318,7 @@ async function loadAdminMembers() {
     return;
   }
 
-  const overviewData = await fetchAdminOverviewData();
-  window.adminDataCache?.write?.(ADMIN_OVERVIEW_CACHE_KEY, overviewData);
+  const overviewData = await window.adminOverviewStore?.getFresh?.();
   hydrateAdminMembersData(overviewData);
 }
 

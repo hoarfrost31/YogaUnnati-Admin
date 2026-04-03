@@ -19,8 +19,6 @@ const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-t
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 const adminActivatedTouchKeys = new WeakMap();
-const ADMIN_OVERVIEW_CACHE_KEY = "overview";
-const ADMIN_OVERVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 const adminDashboardInsightState = {
   weeklyPractice: "practiced_last_7_days",
   weeklyActiveMembers: "active_last_7_days",
@@ -286,28 +284,6 @@ function initializeAdminInsightCards() {
   });
 }
 
-async function fetchAdminOverviewData() {
-  const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
-    fetchAllProfiles(),
-    supabaseClient.from("practice_logs").select("user_id, date"),
-    supabaseClient.from("memberships").select("user_id, plan_code, status, current_period_end"),
-  ]);
-
-  if (practiceLogsResult.error) {
-    throw practiceLogsResult.error;
-  }
-
-  if (membershipsResult.error && membershipsResult.error.code !== "42P01") {
-    throw membershipsResult.error;
-  }
-
-  return {
-    profiles,
-    practiceLogs: practiceLogsResult.data || [],
-    memberships: membershipsResult.data || [],
-  };
-}
-
 function renderAdminDashboardData({ profiles = [], practiceLogs = [], memberships = [] }) {
   const profileById = new Map(
     profiles.map((profileRow) => [profileRow.id, getProfileFromRow(profileRow)]),
@@ -426,7 +402,7 @@ async function loadAdminDashboard() {
 
   window.appAnalytics?.identify(adminUser.id);
 
-  const cachedOverview = window.adminDataCache?.read?.(ADMIN_OVERVIEW_CACHE_KEY, ADMIN_OVERVIEW_CACHE_TTL_MS) || { data: null, isFresh: false };
+  const cachedOverview = window.adminOverviewStore?.readCached?.() || { data: null, isFresh: false };
   if (cachedOverview.data) {
     renderAdminDashboardData(cachedOverview.data);
   }
@@ -435,8 +411,7 @@ async function loadAdminDashboard() {
     return;
   }
 
-  const overviewData = await fetchAdminOverviewData();
-  window.adminDataCache?.write?.(ADMIN_OVERVIEW_CACHE_KEY, overviewData);
+  const overviewData = await window.adminOverviewStore?.getFresh?.();
   renderAdminDashboardData(overviewData);
 }
 
