@@ -113,12 +113,19 @@ window.adminAccess = {
     const record = readAdminAccessRecord();
     const email = normalizeAdminEmail(user?.email);
 
-    if (!user?.id || !isAllowedAdminEmail(email) || !record?.email || record.email !== email) {
+    if (!user?.id || !isAllowedAdminEmail(email)) {
       writeAdminAccessRecord(null);
       if (redirectTo) {
         window.location.href = redirectTo;
       }
       return null;
+    }
+
+    if (!record?.email || record.email !== email) {
+      writeAdminAccessRecord({
+        email,
+        grantedAt: Date.now(),
+      });
     }
 
     return {
@@ -135,5 +142,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
 
 
