@@ -56,19 +56,27 @@
           <article class="admin-card">
             <div class="admin-card-head">
               <div>
-                <p class="eyebrow-label">Fast Actions</p>
-                <h2>Admin shortcuts</h2>
+                <p class="eyebrow-label">Insights</p>
+                <h2>Last 7 days and payments</h2>
               </div>
             </div>
             <div class="admin-link-list">
-              <button type="button" class="admin-link-card admin-link-card-button" data-admin-home-tab-target="members">
-                <strong>Member Directory</strong>
-                <span>Search members, review streaks, and open detailed records.</span>
-              </button>
-              <a href="create-member.html" class="admin-link-card">
-                <strong>Create Account</strong>
-                <span>Use the existing member-creation page when you need to onboard someone new.</span>
-              </a>
+              <div class="admin-link-card">
+                <strong id="adminWeeklyPracticeCount">0 practices</strong>
+                <span id="adminWeeklyPracticeNote">Loading last 7 days of practice...</span>
+              </div>
+              <div class="admin-link-card">
+                <strong id="adminWeeklyActiveMembersCount">0 active members</strong>
+                <span id="adminWeeklyActiveMembersNote">Checking who showed up this week...</span>
+              </div>
+              <div class="admin-link-card">
+                <strong id="adminOverduePaymentsCount">0 overdue payments</strong>
+                <span id="adminOverduePaymentsNote">Review members with overdue renewals.</span>
+              </div>
+              <div class="admin-link-card">
+                <strong id="adminDueSoonPaymentsCount">0 due soon</strong>
+                <span id="adminDueSoonPaymentsNote">Review members due in the next 7 days.</span>
+              </div>
             </div>
           </article>
 

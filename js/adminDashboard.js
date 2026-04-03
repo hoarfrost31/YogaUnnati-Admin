@@ -2,6 +2,14 @@ const adminMemberCountEl = document.getElementById("adminMemberCount");
 const adminTodayCountEl = document.getElementById("adminTodayCount");
 const adminPracticeLogCountEl = document.getElementById("adminPracticeLogCount");
 const adminPracticePulseEl = document.getElementById("adminPracticePulse");
+const adminWeeklyPracticeCountEl = document.getElementById("adminWeeklyPracticeCount");
+const adminWeeklyPracticeNoteEl = document.getElementById("adminWeeklyPracticeNote");
+const adminWeeklyActiveMembersCountEl = document.getElementById("adminWeeklyActiveMembersCount");
+const adminWeeklyActiveMembersNoteEl = document.getElementById("adminWeeklyActiveMembersNote");
+const adminOverduePaymentsCountEl = document.getElementById("adminOverduePaymentsCount");
+const adminOverduePaymentsNoteEl = document.getElementById("adminOverduePaymentsNote");
+const adminDueSoonPaymentsCountEl = document.getElementById("adminDueSoonPaymentsCount");
+const adminDueSoonPaymentsNoteEl = document.getElementById("adminDueSoonPaymentsNote");
 const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-tab]"));
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
@@ -88,6 +96,84 @@ function formatAdminDate(dateString) {
   });
 }
 
+function getAdminTodayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getAdminIsoDateDaysAgo(daysAgo) {
+  const baseDate = new Date();
+  baseDate.setHours(0, 0, 0, 0);
+  baseDate.setDate(baseDate.getDate() - daysAgo);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function renderAdminInsights(practiceLogs, memberships) {
+  if (
+    !adminWeeklyPracticeCountEl ||
+    !adminWeeklyPracticeNoteEl ||
+    !adminWeeklyActiveMembersCountEl ||
+    !adminWeeklyActiveMembersNoteEl ||
+    !adminOverduePaymentsCountEl ||
+    !adminOverduePaymentsNoteEl ||
+    !adminDueSoonPaymentsCountEl ||
+    !adminDueSoonPaymentsNoteEl
+  ) {
+    return;
+  }
+
+  const weekStartIso = getAdminIsoDateDaysAgo(6);
+  const todayIso = getAdminTodayIso();
+
+  const lastWeekLogs = practiceLogs.filter((row) => row.date >= weekStartIso && row.date <= todayIso);
+  const weeklyActiveMembers = new Set(lastWeekLogs.map((row) => row.user_id).filter(Boolean));
+
+  const overdueMemberships = memberships.filter((membership) => {
+    const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+    if (planCode === "none") {
+      return false;
+    }
+
+    const status = String(membership.status || "inactive").trim().toLowerCase();
+    if (status === "past_due") {
+      return true;
+    }
+
+    const dueDate = String(membership.current_period_end || "").slice(0, 10);
+    return Boolean(dueDate) && dueDate < todayIso && ["active", "cancelled", "expired"].includes(status);
+  });
+
+  const dueSoonMemberships = memberships.filter((membership) => {
+    const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+    if (planCode === "none") {
+      return false;
+    }
+
+    const status = String(membership.status || "inactive").trim().toLowerCase();
+    const dueDate = String(membership.current_period_end || "").slice(0, 10);
+    if (!dueDate || dueDate < todayIso || !["active", "past_due"].includes(status)) {
+      return false;
+    }
+
+    return dueDate <= getAdminIsoDateDaysAgo(-7);
+  });
+
+  adminWeeklyPracticeCountEl.textContent = `${lastWeekLogs.length} practice${lastWeekLogs.length === 1 ? "" : "s"}`;
+  adminWeeklyPracticeNoteEl.textContent = `Recorded from ${weekStartIso} to ${todayIso}.`;
+
+  adminWeeklyActiveMembersCountEl.textContent = `${weeklyActiveMembers.size} active member${weeklyActiveMembers.size === 1 ? "" : "s"}`;
+  adminWeeklyActiveMembersNoteEl.textContent = 'Members who practiced at least once in the last 7 days.';
+
+  adminOverduePaymentsCountEl.textContent = `${overdueMemberships.length} overdue payment${overdueMemberships.length === 1 ? "" : "s"}`;
+  adminOverduePaymentsNoteEl.textContent = overdueMemberships.length
+    ? 'These memberships need follow-up now.'
+    : 'No overdue renewals right now.';
+
+  adminDueSoonPaymentsCountEl.textContent = `${dueSoonMemberships.length} due soon`;
+  adminDueSoonPaymentsNoteEl.textContent = dueSoonMemberships.length
+    ? 'Memberships renewing within the next 7 days.'
+    : 'No renewals due in the next 7 days.';
+}
+
 async function loadAdminDashboard() {
   if (!adminMemberCountEl || !adminTodayCountEl || !adminPracticeLogCountEl || !adminPracticePulseEl) {
     return;
@@ -100,19 +186,25 @@ async function loadAdminDashboard() {
 
   window.appAnalytics?.identify(adminUser.id);
 
-  const [profiles, practiceLogsResult] = await Promise.all([
+  const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
     fetchAllProfiles(),
     supabaseClient.from("practice_logs").select("user_id, date"),
+    supabaseClient.from("memberships").select("user_id, plan_code, status, current_period_end"),
   ]);
 
   if (practiceLogsResult.error) {
     throw practiceLogsResult.error;
   }
 
+  if (membershipsResult.error && membershipsResult.error.code !== "42P01") {
+    throw membershipsResult.error;
+  }
+
   const practiceLogs = practiceLogsResult.data || [];
+  const memberships = membershipsResult.data || [];
   const practicedTodayIds = new Set(
     practiceLogs
-      .filter((row) => row.date === new Date().toISOString().slice(0, 10))
+      .filter((row) => row.date === getAdminTodayIso())
       .map((row) => row.user_id)
       .filter(Boolean),
   );
@@ -120,6 +212,7 @@ async function loadAdminDashboard() {
   adminMemberCountEl.textContent = String(profiles.length);
   adminTodayCountEl.textContent = String(practicedTodayIds.size);
   adminPracticeLogCountEl.textContent = String(practiceLogs.length);
+  renderAdminInsights(practiceLogs, memberships);
 
   const practiceByUser = new Map();
   practiceLogs.forEach((row) => {
@@ -165,6 +258,12 @@ initializeAdminHomeTabs();
 
 loadAdminDashboard().catch((error) => {
   console.error(error);
+  if (adminWeeklyPracticeCountEl) {
+    adminWeeklyPracticeCountEl.textContent = 'Insights unavailable';
+  }
+  if (adminWeeklyPracticeNoteEl) {
+    adminWeeklyPracticeNoteEl.textContent = 'Could not load practice and payment insights.';
+  }
   if (adminPracticePulseEl) {
     adminPracticePulseEl.innerHTML = '<div class="admin-empty-state">Could not load dashboard data.</div>';
   }
