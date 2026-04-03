@@ -3770,7 +3770,7 @@ input {
   .admin-topbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 0;
   }
 
   .admin-topbar .back-link,
@@ -3781,16 +3781,20 @@ input {
 
   .admin-topbar.admin-topbar-end {
     align-items: flex-end;
+    margin-bottom: 16px;
   }
 
   .admin-topbar.admin-topbar-end .admin-logout-btn {
-    width: auto;
+    width: fit-content;
+    max-width: calc(100% - 8px);
     min-width: 0;
-    padding-inline: 18px;
+    padding: 10px 16px;
+    align-self: flex-end;
+    justify-content: center;
   }
 
   .admin-shell-header {
-    margin-top: 12px;
+    margin-top: 0;
   }
 }
 
