@@ -108,14 +108,16 @@ window.adminAccess = {
     window.location.href = window.adminRoutes.login;
   },
   async requireAdminAccess(options = {}) {
-    const redirectTo = options.redirectTo || window.adminRoutes.login;
+    const redirectTo = Object.prototype.hasOwnProperty.call(options, "redirectTo") ? options.redirectTo : window.adminRoutes.login;
     const user = await resolveAdminUserWithRetry();
     const record = readAdminAccessRecord();
     const email = normalizeAdminEmail(user?.email);
 
     if (!user?.id || !isAllowedAdminEmail(email) || !record?.email || record.email !== email) {
       writeAdminAccessRecord(null);
-      window.location.href = redirectTo;
+      if (redirectTo) {
+        window.location.href = redirectTo;
+      }
       return null;
     }
 
@@ -133,3 +135,5 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+

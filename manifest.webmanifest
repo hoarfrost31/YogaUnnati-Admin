@@ -2,7 +2,7 @@
   "name": "Admin",
   "short_name": "Admin",
   "description": "Admin control room for YogaUnnati memberships and members.",
-  "start_url": "./login.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f7f3ed",
@@ -22,5 +22,6 @@
     }
   ]
 }
+
 
 

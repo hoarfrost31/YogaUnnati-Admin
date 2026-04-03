@@ -132,3 +132,16 @@ loginBtn.onclick = async () => {
 
 
 
+
+if (isAdminAuthPage) {
+  window.addEventListener("load", async () => {
+    try {
+      const adminUser = await window.adminAccess?.requireAdminAccess?.({ redirectTo: null });
+      if (adminUser?.id) {
+        window.location.href = window.adminRoutes?.dashboard || "index.html";
+      }
+    } catch (error) {
+      console.error("Admin auto-redirect failed:", error);
+    }
+  });
+}

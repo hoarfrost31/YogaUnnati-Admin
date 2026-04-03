@@ -1,4 +1,4 @@
-const CACHE_NAME = "yogaunnati-admin-standalone-v2";
+const CACHE_NAME = "yogaunnati-admin-standalone-v3";
 const APP_SHELL_PATHS = [
   "login.html",
   "index.html",
@@ -52,7 +52,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("yogaunnati-admin-pwa-") && key !== CACHE_NAME).map((key) => caches.delete(key)))).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("yogaunnati-admin-") && key !== CACHE_NAME).map((key) => caches.delete(key)))).then(() => self.clients.claim())
   );
 });
 
@@ -109,6 +109,7 @@ self.addEventListener("fetch", (event) => {
     return cachedResponse || networkFetch;
   }));
 });
+
 
 
 
