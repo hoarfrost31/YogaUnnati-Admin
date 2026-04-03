@@ -1,5 +1,6 @@
 const ADMIN_ACCESS_KEY = "yogaunnati_admin_access_v1";
 const ADMIN_EMAILS = ["nkapse27@gmail.com"];
+const ADMIN_DATA_CACHE_PREFIX = "yogaunnati_admin_data_cache_v1:";
 
 window.adminRoutes = {
   isScopedApp: true,
@@ -112,6 +113,7 @@ window.adminAccess = {
   async logout() {
     writeAdminAccessRecord(null);
     window.appAuth?.clearCachedUser?.();
+    window.adminDataCache?.removeByPrefix?.("");
 
     try {
       await window.supabaseClient?.auth?.signOut?.();
@@ -147,6 +149,60 @@ window.adminAccess = {
       id: user.id,
       email: user.email || "",
     };
+  },
+};
+
+function getAdminDataCacheKey(key) {
+  return `${ADMIN_DATA_CACHE_PREFIX}${key}`;
+}
+
+window.adminDataCache = {
+  read(key, maxAgeMs = 0) {
+    try {
+      const raw = localStorage.getItem(getAdminDataCacheKey(key));
+      if (!raw) {
+        return { data: null, isFresh: false, updatedAt: 0 };
+      }
+
+      const parsed = JSON.parse(raw);
+      const updatedAt = Number(parsed?.updatedAt || 0);
+      const data = parsed?.data ?? null;
+      const isFresh = Boolean(data) && Number.isFinite(updatedAt) && (maxAgeMs <= 0 || Date.now() - updatedAt <= maxAgeMs);
+      return {
+        data,
+        isFresh,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : 0,
+      };
+    } catch (error) {
+      console.error("Admin data cache read error:", error);
+      return { data: null, isFresh: false, updatedAt: 0 };
+    }
+  },
+  write(key, data) {
+    try {
+      localStorage.setItem(getAdminDataCacheKey(key), JSON.stringify({
+        data,
+        updatedAt: Date.now(),
+      }));
+    } catch (error) {
+      console.error("Admin data cache write error:", error);
+    }
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(getAdminDataCacheKey(key));
+    } catch (error) {
+      console.error("Admin data cache remove error:", error);
+    }
+  },
+  removeByPrefix(prefix) {
+    try {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith(getAdminDataCacheKey(prefix)))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch (error) {
+      console.error("Admin data cache prefix remove error:", error);
+    }
   },
 };
 

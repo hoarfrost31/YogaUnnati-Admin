@@ -19,6 +19,8 @@ const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-t
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 const adminActivatedTouchKeys = new WeakMap();
+const ADMIN_OVERVIEW_CACHE_KEY = "overview";
+const ADMIN_OVERVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 const adminDashboardInsightState = {
   weeklyPractice: "practiced_last_7_days",
   weeklyActiveMembers: "active_last_7_days",
@@ -284,18 +286,7 @@ function initializeAdminInsightCards() {
   });
 }
 
-async function loadAdminDashboard() {
-  if (!adminMemberCountEl || !adminTodayCountEl || !adminPracticeLogCountEl || !adminPracticePulseEl) {
-    return;
-  }
-
-  const adminUser = await window.adminAccess.requireAdminAccess();
-  if (!adminUser) {
-    return;
-  }
-
-  window.appAnalytics?.identify(adminUser.id);
-
+async function fetchAdminOverviewData() {
   const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
     fetchAllProfiles(),
     supabaseClient.from("practice_logs").select("user_id, date"),
@@ -310,8 +301,14 @@ async function loadAdminDashboard() {
     throw membershipsResult.error;
   }
 
-  const practiceLogs = practiceLogsResult.data || [];
-  const memberships = membershipsResult.data || [];
+  return {
+    profiles,
+    practiceLogs: practiceLogsResult.data || [],
+    memberships: membershipsResult.data || [],
+  };
+}
+
+function renderAdminDashboardData({ profiles = [], practiceLogs = [], memberships = [] }) {
   const profileById = new Map(
     profiles.map((profileRow) => [profileRow.id, getProfileFromRow(profileRow)]),
   );
@@ -415,6 +412,32 @@ async function loadAdminDashboard() {
       </a>
     `)
     .join("");
+}
+
+async function loadAdminDashboard() {
+  if (!adminMemberCountEl || !adminTodayCountEl || !adminPracticeLogCountEl || !adminPracticePulseEl) {
+    return;
+  }
+
+  const adminUser = await window.adminAccess.requireAdminAccess();
+  if (!adminUser) {
+    return;
+  }
+
+  window.appAnalytics?.identify(adminUser.id);
+
+  const cachedOverview = window.adminDataCache?.read?.(ADMIN_OVERVIEW_CACHE_KEY, ADMIN_OVERVIEW_CACHE_TTL_MS) || { data: null, isFresh: false };
+  if (cachedOverview.data) {
+    renderAdminDashboardData(cachedOverview.data);
+  }
+
+  if (cachedOverview.isFresh) {
+    return;
+  }
+
+  const overviewData = await fetchAdminOverviewData();
+  window.adminDataCache?.write?.(ADMIN_OVERVIEW_CACHE_KEY, overviewData);
+  renderAdminDashboardData(overviewData);
 }
 
 initializeAdminHomeTabs();

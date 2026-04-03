@@ -47,6 +47,7 @@ const ADMIN_MEMBER_ACCOUNT_URL = 'https://vercel-api-hoarfrost31s-projects.verce
 const ADMIN_SET_PASSWORD_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-password';
 const ADMIN_SET_LOGIN_DISABLED_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-login-disabled';
 const ADMIN_DELETE_MEMBER_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-delete-member';
+const ADMIN_MEMBER_CACHE_TTL_MS = 2 * 60 * 1000;
 
 let adminMemberPracticeDates = [];
 let adminCalendarDate = new Date();
@@ -82,6 +83,17 @@ function setAdminMemberLoginAccessMessage(text) {
 function setAdminMemberDeleteMessage(text) {
   if (adminMemberDeleteMsgEl) {
     adminMemberDeleteMsgEl.textContent = text;
+  }
+}
+
+function getAdminMemberCacheKey(memberId) {
+  return `member:${memberId}`;
+}
+
+function invalidateAdminMemberCaches(memberId = "") {
+  window.adminDataCache?.remove?.("overview");
+  if (memberId) {
+    window.adminDataCache?.remove?.(getAdminMemberCacheKey(memberId));
   }
 }
 
@@ -591,6 +603,7 @@ async function saveAdminMemberInfo() {
       email: currentAdminMemberEmail,
       phone,
     });
+    invalidateAdminMemberCaches(currentAdminMemberId);
     setAdminMemberInfoMessage('Member info updated.');
   } catch (error) {
     console.error(error);
@@ -747,6 +760,8 @@ async function saveMemberMembership() {
     renderMembershipSummary(membershipRow);
     renderMembershipEditor(membershipRow);
     renderMembershipHistory(membershipCycles);
+    renderAdminMemberReminder(currentAdminProfileRow, membershipRow, currentAdminProfileRow?.display_name || adminMemberNameEl?.textContent || "Yoga Member");
+    invalidateAdminMemberCaches(currentAdminMemberId);
     setAdminMemberMembershipMessage("Membership updated.");
     window.appAnalytics?.track("admin_membership_updated", {
       plan_code: planCode,
@@ -847,6 +862,7 @@ async function updateMemberLoginAccess(loginDisabled) {
       login_disabled: loginDisabled,
     };
     renderAdminLoginAccess(currentAdminProfileRow);
+    invalidateAdminMemberCaches(currentAdminMemberId);
     setAdminMemberLoginAccessMessage(loginDisabled ? 'Login blocked for this member.' : 'Login restored for this member.');
     window.appAnalytics?.track(loginDisabled ? 'admin_member_login_blocked' : 'admin_member_login_restored', {
       member_id: currentAdminMemberId,
@@ -891,6 +907,7 @@ async function deleteMemberAccount() {
     }
 
     setAdminMemberDeleteMessage('Member deleted. Returning to members...');
+    invalidateAdminMemberCaches(currentAdminMemberId);
     window.appAnalytics?.track('admin_member_deleted', {
       member_id: currentAdminMemberId,
     });
@@ -903,20 +920,8 @@ async function deleteMemberAccount() {
     adminMemberDeleteBtnEl.disabled = false;
   }
 }
-async function loadAdminMember() {
-  const adminUser = await window.adminAccess.requireAdminAccess();
-  if (!adminUser) return;
 
-  window.appAnalytics?.identify(adminUser.id);
-
-  const memberId = new URLSearchParams(window.location.search).get("uid");
-  if (!memberId) {
-    window.location.href = window.adminRoutes?.members || "admin-members.html";
-    return;
-  }
-
-  currentAdminMemberId = memberId;
-
+async function fetchAdminMemberPayload(memberId) {
   const [profileRow, loginAccessRow, practiceLogsResult, membershipRow, membershipCycles] = await Promise.all([
     fetchProfileRow(memberId).catch((error) => {
       if (isProfilesTableMissing(error)) return null;
@@ -936,7 +941,22 @@ async function loadAdminMember() {
 
   if (practiceLogsResult.error) throw practiceLogsResult.error;
 
-  const practiceDates = (practiceLogsResult.data || []).map((row) => row.date).sort();
+  return {
+    profileRow,
+    loginAccessRow,
+    practiceDates: (practiceLogsResult.data || []).map((row) => row.date).sort(),
+    membershipRow,
+    membershipCycles,
+  };
+}
+
+async function renderAdminMemberPayload(memberId, payload) {
+  const profileRow = payload?.profileRow || null;
+  const loginAccessRow = payload?.loginAccessRow || null;
+  const practiceDates = Array.isArray(payload?.practiceDates) ? payload.practiceDates : [];
+  const membershipRow = payload?.membershipRow || null;
+  const membershipCycles = Array.isArray(payload?.membershipCycles) ? payload.membershipCycles : [];
+
   adminMemberPracticeDates = [...new Set(practiceDates)];
   const totalDays = adminMemberPracticeDates.length;
   const streak = calculateAdminStreak(adminMemberPracticeDates);
@@ -988,6 +1008,34 @@ async function loadAdminMember() {
   renderMembershipHistory(membershipCycles);
   renderAdminLoginAccess(loginAccessRow);
   renderAdminPracticeCalendar();
+}
+
+async function loadAdminMember() {
+  const adminUser = await window.adminAccess.requireAdminAccess();
+  if (!adminUser) return;
+
+  window.appAnalytics?.identify(adminUser.id);
+
+  const memberId = new URLSearchParams(window.location.search).get("uid");
+  if (!memberId) {
+    window.location.href = window.adminRoutes?.members || "admin-members.html";
+    return;
+  }
+
+  currentAdminMemberId = memberId;
+  const cacheKey = getAdminMemberCacheKey(memberId);
+  const cachedMember = window.adminDataCache?.read?.(cacheKey, ADMIN_MEMBER_CACHE_TTL_MS) || { data: null, isFresh: false };
+  if (cachedMember.data) {
+    await renderAdminMemberPayload(memberId, cachedMember.data);
+  }
+
+  if (cachedMember.isFresh) {
+    return;
+  }
+
+  const memberPayload = await fetchAdminMemberPayload(memberId);
+  window.adminDataCache?.write?.(cacheKey, memberPayload);
+  await renderAdminMemberPayload(memberId, memberPayload);
 }
 
 if (adminCalendarPrevBtn) {

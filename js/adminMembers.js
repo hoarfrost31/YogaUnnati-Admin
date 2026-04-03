@@ -2,6 +2,8 @@ const adminMembersListEl = document.getElementById("adminMembersList");
 const adminMemberSearchEl = document.getElementById("adminMemberSearch");
 const adminMemberResultsEl = document.getElementById("adminMemberResults");
 const adminMemberFilterEl = document.getElementById("adminMemberFilter");
+const ADMIN_OVERVIEW_CACHE_KEY = "overview";
+const ADMIN_OVERVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 
 let allAdminMembers = [];
 let adminPracticeLogDatesByUser = new Map();
@@ -251,18 +253,7 @@ function applyMemberFilter() {
   renderMembers(filteredMembers);
 }
 
-async function loadAdminMembers() {
-  if (!adminMembersListEl || !adminMemberSearchEl || !adminMemberResultsEl) {
-    return;
-  }
-
-  const adminUser = await window.adminAccess.requireAdminAccess();
-  if (!adminUser) {
-    return;
-  }
-
-  window.appAnalytics?.identify(adminUser.id);
-
+async function fetchAdminOverviewData() {
   const [profiles, practiceLogsResult, membershipsResult] = await Promise.all([
     fetchAllProfiles(),
     supabaseClient.from("practice_logs").select("user_id, date"),
@@ -277,8 +268,14 @@ async function loadAdminMembers() {
     throw membershipsResult.error;
   }
 
-  const practiceLogs = practiceLogsResult.data || [];
-  const memberships = membershipsResult.data || [];
+  return {
+    profiles,
+    practiceLogs: practiceLogsResult.data || [],
+    memberships: membershipsResult.data || [],
+  };
+}
+
+function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships = [] }) {
   const practiceMap = new Map();
 
   practiceLogs.forEach((row) => {
@@ -297,13 +294,14 @@ async function loadAdminMembers() {
 
   allAdminMembers = profiles
     .map((profileRow) => {
+      const profile = getProfileFromRow(profileRow);
       const dates = practiceMap.get(profileRow.id) || [];
       const uniqueDates = [...new Set(dates)].sort();
       const milestoneState = getCurrentMilestoneState(profileRow.id, getMilestoneProgressCount(uniqueDates));
       return {
         id: profileRow.id,
-        displayName: getProfileFromRow(profileRow).displayName || DEFAULT_PROFILE_NAME,
-        phone: getProfileFromRow(profileRow).phone || "",
+        displayName: profile.displayName || DEFAULT_PROFILE_NAME,
+        phone: profile.phone || "",
         totalDays: uniqueDates.length,
         streak: calculateAdminStreak(uniqueDates),
         level: milestoneState.milestone.level,
@@ -321,6 +319,32 @@ async function loadAdminMembers() {
     });
 
   applyMemberFilter();
+}
+
+async function loadAdminMembers() {
+  if (!adminMembersListEl || !adminMemberSearchEl || !adminMemberResultsEl) {
+    return;
+  }
+
+  const adminUser = await window.adminAccess.requireAdminAccess();
+  if (!adminUser) {
+    return;
+  }
+
+  window.appAnalytics?.identify(adminUser.id);
+
+  const cachedOverview = window.adminDataCache?.read?.(ADMIN_OVERVIEW_CACHE_KEY, ADMIN_OVERVIEW_CACHE_TTL_MS) || { data: null, isFresh: false };
+  if (cachedOverview.data) {
+    hydrateAdminMembersData(cachedOverview.data);
+  }
+
+  if (cachedOverview.isFresh) {
+    return;
+  }
+
+  const overviewData = await fetchAdminOverviewData();
+  window.adminDataCache?.write?.(ADMIN_OVERVIEW_CACHE_KEY, overviewData);
+  hydrateAdminMembersData(overviewData);
 }
 
 if (adminMemberSearchEl) {
