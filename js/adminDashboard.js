@@ -19,6 +19,7 @@ const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-t
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 const adminActivatedTouchKeys = new WeakMap();
+const adminTouchStateByElement = new WeakMap();
 const adminDashboardInsightState = {
   weeklyPractice: "practiced_last_7_days",
   weeklyActiveMembers: "active_last_7_days",
@@ -58,6 +59,31 @@ function bindAdminActivation(element, handler) {
     return;
   }
 
+  element.addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches?.[0];
+    if (!touch) {
+      return;
+    }
+
+    adminTouchStateByElement.set(element, {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      moved: false,
+    });
+  }, { passive: true });
+
+  element.addEventListener("touchmove", (event) => {
+    const touch = event.changedTouches?.[0];
+    const touchState = adminTouchStateByElement.get(element);
+    if (!touch || !touchState) {
+      return;
+    }
+
+    if (Math.abs(touch.clientX - touchState.startX) > 10 || Math.abs(touch.clientY - touchState.startY) > 10) {
+      touchState.moved = true;
+    }
+  }, { passive: true });
+
   element.addEventListener("click", (event) => {
     const lastTouchAt = adminActivatedTouchKeys.get(element) || 0;
     if (Date.now() - lastTouchAt < 700) {
@@ -69,10 +95,20 @@ function bindAdminActivation(element, handler) {
   });
 
   element.addEventListener("touchend", (event) => {
+    const touchState = adminTouchStateByElement.get(element);
+    adminTouchStateByElement.delete(element);
+    if (touchState?.moved) {
+      return;
+    }
+
     adminActivatedTouchKeys.set(element, Date.now());
     event.preventDefault();
     handler(event);
   }, { passive: false });
+
+  element.addEventListener("touchcancel", () => {
+    adminTouchStateByElement.delete(element);
+  }, { passive: true });
 }
 
 function initializeAdminHomeTabs() {
