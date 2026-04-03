@@ -26,18 +26,23 @@ const adminMemberMembershipMsgEl = document.getElementById("adminMemberMembershi
 const adminMemberPasswordInputEl = document.getElementById("adminMemberPasswordInput");
 const adminMemberSetPasswordBtnEl = document.getElementById("adminMemberSetPasswordBtn");
 const adminMemberPasswordMsgEl = document.getElementById("adminMemberPasswordMsg");
+const adminMemberLoginAccessNoteEl = document.getElementById("adminMemberLoginAccessNote");
+const adminMemberToggleLoginBtnEl = document.getElementById("adminMemberToggleLoginBtn");
+const adminMemberLoginAccessMsgEl = document.getElementById("adminMemberLoginAccessMsg");
 const adminMemberDeleteBtnEl = document.getElementById("adminMemberDeleteBtn");
 const adminMemberDeleteMsgEl = document.getElementById("adminMemberDeleteMsg");
 const adminMemberTabEls = Array.from(document.querySelectorAll("[data-admin-member-tab]"));
 const adminMemberPanelEls = Array.from(document.querySelectorAll("[data-admin-member-panel]"));
 const BILLING_PERIOD_DAYS = 30;
 const ADMIN_SET_PASSWORD_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-password';
+const ADMIN_SET_LOGIN_DISABLED_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-set-member-login-disabled';
 const ADMIN_DELETE_MEMBER_URL = 'https://vercel-api-hoarfrost31s-projects.vercel.app/api/admin-delete-member';
 
 let adminMemberPracticeDates = [];
 let adminCalendarDate = new Date();
 let currentAdminMemberId = "";
 let currentAdminMembershipRow = null;
+let currentAdminProfileRow = null;
 
 function setAdminMemberMembershipMessage(text) {
   if (adminMemberMembershipMsgEl) {
@@ -51,10 +56,30 @@ function setAdminMemberPasswordMessage(text) {
   }
 }
 
+function setAdminMemberLoginAccessMessage(text) {
+  if (adminMemberLoginAccessMsgEl) {
+    adminMemberLoginAccessMsgEl.textContent = text;
+  }
+}
+
 function setAdminMemberDeleteMessage(text) {
   if (adminMemberDeleteMsgEl) {
     adminMemberDeleteMsgEl.textContent = text;
   }
+}
+
+function renderAdminLoginAccess(profileRow) {
+  currentAdminProfileRow = profileRow || null;
+
+  if (!adminMemberToggleLoginBtnEl || !adminMemberLoginAccessNoteEl) {
+    return;
+  }
+
+  const isDisabled = Boolean(profileRow?.login_disabled);
+  adminMemberToggleLoginBtnEl.textContent = isDisabled ? 'Restore Login' : 'Block Login';
+  adminMemberLoginAccessNoteEl.textContent = isDisabled
+    ? 'This member cannot sign in. Any existing session is forced out when the app rechecks access.'
+    : 'This member can sign in with their current credentials.';
 }
 
 function setActiveAdminMemberTab(tabName) {
@@ -250,6 +275,29 @@ async function loadMembershipCycles(memberId) {
 
   if (error) throw error;
   return data || [];
+}
+
+async function loadLoginAccessRow(memberId) {
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("profiles")
+      .select("id, login_disabled")
+      .eq("id", memberId)
+      .maybeSingle();
+
+    if (error) {
+      if (["42P01", "42703", "PGRST116", "PGRST204"].includes(String(error.code || ""))) {
+        return { id: memberId, login_disabled: false };
+      }
+
+      throw error;
+    }
+
+    return data || { id: memberId, login_disabled: false };
+  } catch (error) {
+    console.error(error);
+    return { id: memberId, login_disabled: false };
+  }
 }
 
 function renderMembershipSummary(membershipRow) {
@@ -506,6 +554,55 @@ async function setMemberPassword() {
   }
 }
 
+async function updateMemberLoginAccess(loginDisabled) {
+  if (!currentAdminMemberId || !adminMemberToggleLoginBtnEl) return;
+
+  const actionLabel = loginDisabled ? 'Blocking login...' : 'Restoring login...';
+  setAdminMemberLoginAccessMessage(actionLabel);
+  adminMemberToggleLoginBtnEl.disabled = true;
+
+  try {
+    const { data: sessionData } = await window.supabaseClient.auth.getSession();
+    const session = sessionData?.session || null;
+    const accessToken = session?.access_token || '';
+    if (!accessToken) {
+      throw new Error('Admin session missing. Please sign in again.');
+    }
+
+    const response = await fetch(ADMIN_SET_LOGIN_DISABLED_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        member_id: currentAdminMemberId,
+        login_disabled: loginDisabled,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Could not update login access.');
+    }
+
+    currentAdminProfileRow = {
+      ...(currentAdminProfileRow || {}),
+      login_disabled: loginDisabled,
+    };
+    renderAdminLoginAccess(currentAdminProfileRow);
+    setAdminMemberLoginAccessMessage(loginDisabled ? 'Login blocked for this member.' : 'Login restored for this member.');
+    window.appAnalytics?.track(loginDisabled ? 'admin_member_login_blocked' : 'admin_member_login_restored', {
+      member_id: currentAdminMemberId,
+    });
+  } catch (error) {
+    console.error(error);
+    setAdminMemberLoginAccessMessage(error.message || 'Could not update login access.');
+  } finally {
+    adminMemberToggleLoginBtnEl.disabled = false;
+  }
+}
+
 async function deleteMemberAccount() {
   if (!currentAdminMemberId || !adminMemberDeleteBtnEl) return;
 
@@ -564,11 +661,12 @@ async function loadAdminMember() {
 
   currentAdminMemberId = memberId;
 
-  const [profileRow, practiceLogsResult, membershipRow, membershipCycles] = await Promise.all([
+  const [profileRow, loginAccessRow, practiceLogsResult, membershipRow, membershipCycles] = await Promise.all([
     fetchProfileRow(memberId).catch((error) => {
       if (isProfilesTableMissing(error)) return null;
       throw error;
     }),
+    loadLoginAccessRow(memberId),
     window.supabaseClient.from("practice_logs").select("date").eq("user_id", memberId),
     loadMembershipRow(memberId).catch((error) => {
       if (error?.code === "42P01") return null;
@@ -622,6 +720,7 @@ async function loadAdminMember() {
   renderMembershipSummary(membershipRow);
   renderMembershipEditor(membershipRow);
   renderMembershipHistory(membershipCycles);
+  renderAdminLoginAccess(loginAccessRow);
   renderAdminPracticeCalendar();
 }
 
@@ -653,6 +752,13 @@ if (adminMemberSaveMembershipBtnEl) {
 
 if (adminMemberSetPasswordBtnEl) {
   adminMemberSetPasswordBtnEl.addEventListener('click', setMemberPassword);
+}
+
+if (adminMemberToggleLoginBtnEl) {
+  adminMemberToggleLoginBtnEl.addEventListener('click', () => {
+    const nextLoginDisabled = !Boolean(currentAdminProfileRow?.login_disabled);
+    updateMemberLoginAccess(nextLoginDisabled);
+  });
 }
 
 if (adminMemberDeleteBtnEl) {
