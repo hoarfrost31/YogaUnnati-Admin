@@ -4685,6 +4685,14 @@ input {
   font: inherit;
 }
 
+.admin-members-scope-card.hidden {
+  display: none !important;
+}
+
+.admin-table-head-compact {
+  margin-bottom: 8px;
+}
+
 .admin-tab.is-active {
   color: #fff;
   background: linear-gradient(90deg, var(--accent-deep) 0%, #d99258 100%);

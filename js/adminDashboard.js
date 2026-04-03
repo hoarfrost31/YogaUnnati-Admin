@@ -4,16 +4,26 @@ const adminPracticeLogCountEl = document.getElementById("adminPracticeLogCount")
 const adminPracticePulseEl = document.getElementById("adminPracticePulse");
 const adminWeeklyPracticeCountEl = document.getElementById("adminWeeklyPracticeCount");
 const adminWeeklyPracticeNoteEl = document.getElementById("adminWeeklyPracticeNote");
+const adminWeeklyPracticeCardEl = document.getElementById("adminWeeklyPracticeCard");
 const adminWeeklyActiveMembersCountEl = document.getElementById("adminWeeklyActiveMembersCount");
 const adminWeeklyActiveMembersNoteEl = document.getElementById("adminWeeklyActiveMembersNote");
+const adminWeeklyActiveMembersCardEl = document.getElementById("adminWeeklyActiveMembersCard");
 const adminOverduePaymentsCountEl = document.getElementById("adminOverduePaymentsCount");
 const adminOverduePaymentsNoteEl = document.getElementById("adminOverduePaymentsNote");
+const adminOverduePaymentsCardEl = document.getElementById("adminOverduePaymentsCard");
 const adminDueSoonPaymentsCountEl = document.getElementById("adminDueSoonPaymentsCount");
 const adminDueSoonPaymentsNoteEl = document.getElementById("adminDueSoonPaymentsNote");
+const adminDueSoonPaymentsCardEl = document.getElementById("adminDueSoonPaymentsCard");
 const adminHomeTabEls = Array.from(document.querySelectorAll("[data-admin-home-tab]"));
 const adminHomePanelEls = Array.from(document.querySelectorAll("[data-admin-home-panel]"));
 const adminHomeTabTargetEls = Array.from(document.querySelectorAll("[data-admin-home-tab-target]"));
 const adminActivatedTouchKeys = new WeakMap();
+const adminDashboardInsightState = {
+  weeklyPractice: null,
+  weeklyActiveMembers: null,
+  overduePayments: null,
+  dueSoonPayments: null,
+};
 
 function setActiveAdminHomeTab(tabName, options = {}) {
   const updateHash = options.updateHash !== false;
@@ -172,6 +182,62 @@ function renderAdminInsights(practiceLogs, memberships) {
   adminDueSoonPaymentsNoteEl.textContent = dueSoonMemberships.length
     ? 'Memberships renewing within the next 7 days.'
     : 'No renewals due in the next 7 days.';
+
+  adminDashboardInsightState.weeklyPractice = {
+    title: 'Members with practice in the last 7 days',
+    note: `Showing members who practiced between ${weekStartIso} and ${todayIso}.`,
+    resultLabel: `${weeklyActiveMembers.size} practicing member${weeklyActiveMembers.size === 1 ? "" : "s"}`,
+    memberIds: [...weeklyActiveMembers],
+  };
+  adminDashboardInsightState.weeklyActiveMembers = {
+    title: 'Active members in the last 7 days',
+    note: 'Members who recorded at least one practice this week.',
+    resultLabel: `${weeklyActiveMembers.size} active member${weeklyActiveMembers.size === 1 ? "" : "s"}`,
+    memberIds: [...weeklyActiveMembers],
+  };
+  adminDashboardInsightState.overduePayments = {
+    title: 'Overdue payments',
+    note: 'Members with overdue renewals or memberships marked past due.',
+    resultLabel: `${overdueMemberships.length} overdue payment${overdueMemberships.length === 1 ? "" : "s"}`,
+    memberIds: overdueMemberships.map((membership) => membership.user_id).filter(Boolean),
+  };
+  adminDashboardInsightState.dueSoonPayments = {
+    title: 'Payments due in the next 7 days',
+    note: 'Members whose renewal date falls within the next 7 days.',
+    resultLabel: `${dueSoonMemberships.length} due soon`,
+    memberIds: dueSoonMemberships.map((membership) => membership.user_id).filter(Boolean),
+  };
+}
+
+function openAdminMembersPreset(presetKey) {
+  const preset = adminDashboardInsightState[presetKey];
+  if (!preset) {
+    return;
+  }
+
+  setActiveAdminHomeTab("members");
+  window.dispatchEvent(new CustomEvent("admin-members-preset", {
+    detail: preset,
+  }));
+}
+
+function initializeAdminInsightCards() {
+  const cardBindings = [
+    [adminWeeklyPracticeCardEl, "weeklyPractice"],
+    [adminWeeklyActiveMembersCardEl, "weeklyActiveMembers"],
+    [adminOverduePaymentsCardEl, "overduePayments"],
+    [adminDueSoonPaymentsCardEl, "dueSoonPayments"],
+  ];
+
+  cardBindings.forEach(([element, presetKey]) => {
+    if (!element) {
+      return;
+    }
+
+    bindAdminActivation(element, () => {
+      openAdminMembersPreset(presetKey);
+    });
+  });
 }
 
 async function loadAdminDashboard() {
@@ -255,6 +321,7 @@ async function loadAdminDashboard() {
 }
 
 initializeAdminHomeTabs();
+initializeAdminInsightCards();
 
 loadAdminDashboard().catch((error) => {
   console.error(error);

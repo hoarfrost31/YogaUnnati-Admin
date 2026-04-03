@@ -1,8 +1,14 @@
 const adminMembersListEl = document.getElementById("adminMembersList");
 const adminMemberSearchEl = document.getElementById("adminMemberSearch");
 const adminMemberResultsEl = document.getElementById("adminMemberResults");
+const adminMembersScopeCardEl = document.getElementById("adminMembersScopeCard");
+const adminMembersScopeEyebrowEl = document.getElementById("adminMembersScopeEyebrow");
+const adminMembersScopeTitleEl = document.getElementById("adminMembersScopeTitle");
+const adminMembersScopeNoteEl = document.getElementById("adminMembersScopeNote");
+const adminMembersScopeClearBtnEl = document.getElementById("adminMembersScopeClearBtn");
 
 let allAdminMembers = [];
+let activeAdminMembersPreset = null;
 
 function calculateAdminStreak(practiceDates) {
   const dates = [...new Set(practiceDates)].sort().reverse();
@@ -43,7 +49,7 @@ function renderMembers(members) {
     return;
   }
 
-  adminMemberResultsEl.textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
+  adminMemberResultsEl.textContent = activeAdminMembersPreset?.resultLabel || `${members.length} member${members.length === 1 ? "" : "s"}`;
 
   if (!members.length) {
     adminMembersListEl.innerHTML = '<div class="admin-empty-state">No matching members found.</div>';
@@ -66,22 +72,76 @@ function renderMembers(members) {
     .join("");
 }
 
+function renderMembersScope() {
+  if (!adminMembersScopeCardEl || !adminMembersScopeTitleEl || !adminMembersScopeNoteEl || !adminMembersScopeEyebrowEl) {
+    return;
+  }
+
+  const hasPreset = Boolean(activeAdminMembersPreset);
+  adminMembersScopeCardEl.classList.toggle("hidden", !hasPreset);
+  adminMembersScopeCardEl.hidden = !hasPreset;
+
+  if (!hasPreset) {
+    return;
+  }
+
+  adminMembersScopeEyebrowEl.textContent = "Showing";
+  adminMembersScopeTitleEl.textContent = activeAdminMembersPreset.title || "Filtered members";
+  adminMembersScopeNoteEl.textContent = activeAdminMembersPreset.note || "Members matching this dashboard insight.";
+}
+
+function getMembersFromActivePreset(members) {
+  if (!activeAdminMembersPreset?.memberIds?.length) {
+    return members;
+  }
+
+  const allowedIds = new Set(activeAdminMembersPreset.memberIds);
+  return members.filter((member) => allowedIds.has(member.id));
+}
+
 function applyMemberFilter() {
   if (!adminMemberSearchEl) {
     return;
   }
 
   const query = String(adminMemberSearchEl.value || "").trim().toLowerCase();
+  const scopedMembers = getMembersFromActivePreset(allAdminMembers);
   if (!query) {
-    renderMembers(allAdminMembers);
+    renderMembersScope();
+    renderMembers(scopedMembers);
     return;
   }
 
-  const filteredMembers = allAdminMembers.filter((member) =>
+  const filteredMembers = scopedMembers.filter((member) =>
     member.displayName.toLowerCase().includes(query) || member.id.toLowerCase().includes(query),
   );
 
+  renderMembersScope();
   renderMembers(filteredMembers);
+}
+
+function clearAdminMembersPreset() {
+  activeAdminMembersPreset = null;
+  renderMembersScope();
+  applyMemberFilter();
+}
+
+function applyAdminMembersPreset(preset) {
+  activeAdminMembersPreset = preset && typeof preset === "object"
+    ? {
+      title: String(preset.title || "Filtered members"),
+      note: String(preset.note || ""),
+      resultLabel: String(preset.resultLabel || ""),
+      memberIds: Array.isArray(preset.memberIds) ? [...new Set(preset.memberIds.filter(Boolean))] : [],
+    }
+    : null;
+
+  if (adminMemberSearchEl) {
+    adminMemberSearchEl.value = "";
+  }
+
+  renderMembersScope();
+  applyMemberFilter();
 }
 
 async function loadAdminMembers() {
@@ -136,12 +196,21 @@ async function loadAdminMembers() {
       return a.displayName.localeCompare(b.displayName);
     });
 
-  renderMembers(allAdminMembers);
+  renderMembersScope();
+  applyMemberFilter();
 }
 
 if (adminMemberSearchEl) {
   adminMemberSearchEl.addEventListener("input", applyMemberFilter);
 }
+
+if (adminMembersScopeClearBtnEl) {
+  adminMembersScopeClearBtnEl.addEventListener("click", clearAdminMembersPreset);
+}
+
+window.addEventListener("admin-members-preset", (event) => {
+  applyAdminMembersPreset(event.detail || null);
+});
 
 loadAdminMembers().catch((error) => {
   console.error(error);

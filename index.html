@@ -61,22 +61,22 @@
               </div>
             </div>
             <div class="admin-link-list">
-              <div class="admin-link-card">
+              <button type="button" class="admin-link-card admin-link-card-button" id="adminWeeklyPracticeCard">
                 <strong id="adminWeeklyPracticeCount">0 practices</strong>
                 <span id="adminWeeklyPracticeNote">Loading last 7 days of practice...</span>
-              </div>
-              <div class="admin-link-card">
+              </button>
+              <button type="button" class="admin-link-card admin-link-card-button" id="adminWeeklyActiveMembersCard">
                 <strong id="adminWeeklyActiveMembersCount">0 active members</strong>
                 <span id="adminWeeklyActiveMembersNote">Checking who showed up this week...</span>
-              </div>
-              <div class="admin-link-card">
+              </button>
+              <button type="button" class="admin-link-card admin-link-card-button" id="adminOverduePaymentsCard">
                 <strong id="adminOverduePaymentsCount">0 overdue payments</strong>
                 <span id="adminOverduePaymentsNote">Review members with overdue renewals.</span>
-              </div>
-              <div class="admin-link-card">
+              </button>
+              <button type="button" class="admin-link-card admin-link-card-button" id="adminDueSoonPaymentsCard">
                 <strong id="adminDueSoonPaymentsCount">0 due soon</strong>
                 <span id="adminDueSoonPaymentsNote">Review members due in the next 7 days.</span>
-              </div>
+              </button>
             </div>
           </article>
 
@@ -96,6 +96,17 @@
         <div class="profile-page-header admin-list-header admin-list-header-actions">
           <a href="create-member.html" class="secondary-btn admin-inline-btn">Add Member</a>
         </div>
+
+        <section class="admin-card admin-search-card admin-members-scope-card hidden" id="adminMembersScopeCard" hidden>
+          <div class="admin-table-head admin-table-head-compact">
+            <div>
+              <p class="eyebrow-label" id="adminMembersScopeEyebrow">Showing</p>
+              <strong id="adminMembersScopeTitle">Filtered members</strong>
+            </div>
+            <button type="button" class="secondary-btn admin-inline-btn" id="adminMembersScopeClearBtn">Clear</button>
+          </div>
+          <p class="admin-inline-note" id="adminMembersScopeNote">Members matching this dashboard insight.</p>
+        </section>
 
         <section class="admin-card admin-search-card">
           <label class="field-label" for="adminMemberSearch">Search members</label>
