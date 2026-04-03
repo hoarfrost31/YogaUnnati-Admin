@@ -130,7 +130,7 @@ function isProfilesTableMissing(error) {
 async function fetchProfileRow(userId) {
   const { data, error } = await window.supabaseClient
     .from("profiles")
-    .select("id, display_name, avatar_url, phone")
+    .select("id, display_name, avatar_url, phone, last_seen_at")
     .eq("id", userId)
     .maybeSingle();
 
@@ -308,7 +308,7 @@ async function fetchProfilesByIds(userIds = []) {
 
   const { data, error } = await window.supabaseClient
     .from("profiles")
-    .select("id, display_name, avatar_url, phone")
+    .select("id, display_name, avatar_url, phone, last_seen_at")
     .in("id", uniqueIds);
 
   if (error) {
@@ -326,7 +326,7 @@ async function fetchProfilesByIds(userIds = []) {
 async function fetchAllProfiles() {
   const { data, error } = await window.supabaseClient
     .from("profiles")
-    .select("id, display_name, avatar_url, phone");
+    .select("id, display_name, avatar_url, phone, last_seen_at");
 
   if (error) {
     if (isProfilesTableMissing(error)) {

@@ -13,6 +13,7 @@ const adminDetailMilestoneProgressEl = document.getElementById("adminDetailMiles
 const adminDetailMilestoneRemainingEl = document.getElementById("adminDetailMilestoneRemaining");
 const adminMemberReferenceLineEl = document.getElementById("adminMemberReferenceLine");
 const adminMemberPhoneLineEl = document.getElementById("adminMemberPhoneLine");
+const adminMemberLastSeenLineEl = document.getElementById("adminMemberLastSeenLine");
 const adminCalendarLabelEl = document.getElementById("adminCalendarLabel");
 const adminPracticeCalendarGridEl = document.getElementById("adminPracticeCalendarGrid");
 const adminCalendarPrevBtn = document.getElementById("adminCalendarPrev");
@@ -156,6 +157,25 @@ function formatAdminDate(dateString) {
     month: "short",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+function formatAdminDateTime(dateTimeString) {
+  if (!dateTimeString) {
+    return "No recent app activity";
+  }
+
+  const date = new Date(dateTimeString);
+  if (Number.isNaN(date.getTime())) {
+    return "No recent app activity";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
@@ -702,6 +722,9 @@ async function loadAdminMember() {
   if (adminMemberPhoneLineEl) {
     adminMemberPhoneLineEl.textContent = phoneNumber ? `Phone: ${phoneNumber}` : 'Phone: -';
   }
+  if (adminMemberLastSeenLineEl) {
+    adminMemberLastSeenLineEl.textContent = `Last seen: ${formatAdminDateTime(profileRow?.last_seen_at || "")}`;
+  }
   adminMemberMetaEl.textContent = lastPractice
     ? `Last practice on ${formatAdminDate(lastPractice)}`
     : 'No practice recorded yet.';
@@ -772,6 +795,9 @@ loadAdminMember().catch((error) => {
   adminMemberMetaEl.textContent = 'Could not load this member record.';
   if (adminMemberPhoneLineEl) {
     adminMemberPhoneLineEl.textContent = 'Phone: -';
+  }
+  if (adminMemberLastSeenLineEl) {
+    adminMemberLastSeenLineEl.textContent = 'Last seen: -';
   }
   if (adminMemberReferenceLineEl) {
     adminMemberReferenceLineEl.textContent = 'Member ID: -';

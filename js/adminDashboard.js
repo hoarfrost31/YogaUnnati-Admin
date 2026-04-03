@@ -185,6 +185,13 @@ function renderAdminInsights(practiceLogs, memberships) {
 
 }
 
+function getAdminIsoTimestampDaysAgo(daysAgo) {
+  const baseDate = new Date();
+  baseDate.setHours(0, 0, 0, 0);
+  baseDate.setDate(baseDate.getDate() - daysAgo);
+  return baseDate.toISOString();
+}
+
 function openAdminMembersFilter(filterKey) {
   const filterValue = adminDashboardInsightState[filterKey];
   if (!filterValue) {
@@ -255,6 +262,21 @@ async function loadAdminDashboard() {
   adminTodayCountEl.textContent = String(practicedTodayIds.size);
   adminPracticeLogCountEl.textContent = String(practiceLogs.length);
   renderAdminInsights(practiceLogs, memberships);
+
+  const weekSeenCutoffIso = getAdminIsoTimestampDaysAgo(6);
+  const recentlySeenMembers = profiles.filter((profileRow) => {
+    const lastSeenAt = String(profileRow?.last_seen_at || "");
+    return Boolean(lastSeenAt) && lastSeenAt >= weekSeenCutoffIso;
+  });
+
+  if (adminWeeklyActiveMembersCountEl) {
+    adminWeeklyActiveMembersCountEl.textContent = `${recentlySeenMembers.length} active member${recentlySeenMembers.length === 1 ? "" : "s"}`;
+  }
+  if (adminWeeklyActiveMembersNoteEl) {
+    adminWeeklyActiveMembersNoteEl.textContent = recentlySeenMembers.length
+      ? "Members who opened the app in the last 7 days."
+      : "No app opens recorded in the last 7 days.";
+  }
 
   const practiceByUser = new Map();
   practiceLogs.forEach((row) => {

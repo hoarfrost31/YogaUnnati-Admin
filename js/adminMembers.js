@@ -7,6 +7,25 @@ let allAdminMembers = [];
 let adminPracticeLogDatesByUser = new Map();
 let adminMembershipsByUser = new Map();
 
+function formatAdminDateTime(dateTimeString) {
+  if (!dateTimeString) {
+    return "No recent app activity";
+  }
+
+  const date = new Date(dateTimeString);
+  if (Number.isNaN(date.getTime())) {
+    return "No recent app activity";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function calculateAdminStreak(practiceDates) {
   const dates = [...new Set(practiceDates)].sort().reverse();
   let streak = 0;
@@ -62,6 +81,7 @@ function renderMembers(members) {
         </div>
         <div class="admin-member-meta">
           <span>${formatAdminDate(member.lastPractice)}</span>
+          <span>${formatAdminDateTime(member.lastSeenAt)}</span>
           <span class="admin-member-id">${member.id}</span>
         </div>
       </a>
@@ -91,6 +111,14 @@ function getFilteredAdminMembers(members) {
   }
 
   if (filterValue === "practiced_last_7_days" || filterValue === "active_last_7_days") {
+    if (filterValue === "active_last_7_days") {
+      const seenCutoffIso = getAdminIsoDateDaysAgo(6);
+      return members.filter((member) => {
+        const lastSeenAt = String(member.lastSeenAt || "");
+        return Boolean(lastSeenAt) && lastSeenAt.slice(0, 10) >= seenCutoffIso;
+      });
+    }
+
     return members.filter((member) => {
       const dates = adminPracticeLogDatesByUser.get(member.id) || [];
       return dates.some((date) => date >= weekStartIso && date <= todayIso);
@@ -219,6 +247,7 @@ async function loadAdminMembers() {
         streak: calculateAdminStreak(uniqueDates),
         level: milestoneState.milestone.level,
         lastPractice: uniqueDates.slice(-1)[0] || "",
+        lastSeenAt: String(profileRow?.last_seen_at || ""),
       };
     })
     .sort((a, b) => {
