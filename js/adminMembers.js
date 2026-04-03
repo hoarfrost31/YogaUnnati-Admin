@@ -2,10 +2,10 @@ const adminMembersListEl = document.getElementById("adminMembersList");
 const adminMemberSearchEl = document.getElementById("adminMemberSearch");
 const adminMemberResultsEl = document.getElementById("adminMemberResults");
 const adminMemberFilterEl = document.getElementById("adminMemberFilter");
+const ADMIN_MEMBERS_LIST_CACHE_KEY = "members:list";
+const ADMIN_MEMBERS_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let allAdminMembers = [];
-let adminPracticeLogDatesByUser = new Map();
-let adminMembershipsByUser = new Map();
 
 function normalizeAdminWhatsAppPhone(phone = "") {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -162,71 +162,25 @@ function getAdminIsoDateDaysAgo(daysAgo) {
 
 function getFilteredAdminMembers(members) {
   const filterValue = String(adminMemberFilterEl?.value || "all");
-  const todayIso = getAdminTodayIso();
-  const weekStartIso = getAdminIsoDateDaysAgo(6);
-  const dueSoonCutoffIso = getAdminIsoDateDaysAgo(-7);
 
   if (filterValue === "all") {
     return members;
   }
 
-  if (filterValue === "practiced_last_7_days" || filterValue === "active_last_7_days") {
-    if (filterValue === "active_last_7_days") {
-      const seenCutoffIso = getAdminIsoDateDaysAgo(6);
-      return members.filter((member) => {
-        const lastSeenAt = String(member.lastSeenAt || "");
-        return Boolean(lastSeenAt) && lastSeenAt.slice(0, 10) >= seenCutoffIso;
-      });
-    }
+  if (filterValue === "practiced_last_7_days") {
+    return members.filter((member) => Boolean(member.practicedLast7Days));
+  }
 
-    return members.filter((member) => {
-      const dates = adminPracticeLogDatesByUser.get(member.id) || [];
-      return dates.some((date) => date >= weekStartIso && date <= todayIso);
-    });
+  if (filterValue === "active_last_7_days") {
+    return members.filter((member) => Boolean(member.activeLast7Days));
   }
 
   if (filterValue === "overdue_payments") {
-    return members.filter((member) => {
-      const membership = adminMembershipsByUser.get(member.id);
-      if (!membership) {
-        return false;
-      }
-
-      const planCode = String(membership.plan_code || "none").trim().toLowerCase();
-      if (planCode === "none") {
-        return false;
-      }
-
-      const status = String(membership.status || "inactive").trim().toLowerCase();
-      if (status === "past_due") {
-        return true;
-      }
-
-      const dueDate = String(membership.current_period_end || "").slice(0, 10);
-      return Boolean(dueDate) && dueDate < todayIso && ["active", "cancelled", "expired"].includes(status);
-    });
+    return members.filter((member) => Boolean(member.isOverdue));
   }
 
   if (filterValue === "payments_due_soon") {
-    return members.filter((member) => {
-      const membership = adminMembershipsByUser.get(member.id);
-      if (!membership) {
-        return false;
-      }
-
-      const planCode = String(membership.plan_code || "none").trim().toLowerCase();
-      if (planCode === "none") {
-        return false;
-      }
-
-      const status = String(membership.status || "inactive").trim().toLowerCase();
-      const dueDate = String(membership.current_period_end || "").slice(0, 10);
-      if (!dueDate || dueDate < todayIso || !["active", "past_due"].includes(status)) {
-        return false;
-      }
-
-      return dueDate <= dueSoonCutoffIso;
-    });
+    return members.filter((member) => Boolean(member.isDueSoon));
   }
 
   return members;
@@ -251,7 +205,10 @@ function applyMemberFilter() {
   renderMembers(filteredMembers);
 }
 
-function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships = [] }) {
+function buildAdminMembersSnapshot({ profiles = [], practiceLogs = [], memberships = [] }) {
+  const weekStartIso = getAdminIsoDateDaysAgo(6);
+  const todayIso = getAdminTodayIso();
+  const dueSoonCutoffIso = getAdminIsoDateDaysAgo(-7);
   const practiceMap = new Map();
 
   practiceLogs.forEach((row) => {
@@ -261,19 +218,21 @@ function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships
     practiceMap.get(row.user_id).push(row.date);
   });
 
-  adminPracticeLogDatesByUser = practiceMap;
-  adminMembershipsByUser = new Map(
+  const membershipsByUser = new Map(
     memberships
       .filter((membership) => membership?.user_id)
       .map((membership) => [membership.user_id, membership]),
   );
 
-  allAdminMembers = profiles
+  const members = profiles
     .map((profileRow) => {
       const profile = getProfileFromRow(profileRow);
       const dates = practiceMap.get(profileRow.id) || [];
       const uniqueDates = [...new Set(dates)].sort();
       const milestoneState = getCurrentMilestoneState(profileRow.id, getMilestoneProgressCount(uniqueDates));
+      const membership = membershipsByUser.get(profileRow.id) || null;
+      const membershipDueDate = String(membership?.current_period_end || "").slice(0, 10);
+      const lastSeenAt = String(profileRow?.last_seen_at || "");
       return {
         id: profileRow.id,
         displayName: profile.displayName || DEFAULT_PROFILE_NAME,
@@ -282,9 +241,16 @@ function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships
         streak: calculateAdminStreak(uniqueDates),
         level: milestoneState.milestone.level,
         lastPractice: uniqueDates.slice(-1)[0] || "",
-        lastSeenAt: String(profileRow?.last_seen_at || ""),
-        membershipDueDate: String(adminMembershipsByUser.get(profileRow.id)?.current_period_end || "").slice(0, 10),
-        isOverdue: isAdminMembershipOverdue(adminMembershipsByUser.get(profileRow.id)),
+        lastSeenAt,
+        membershipDueDate,
+        practicedLast7Days: uniqueDates.some((date) => date >= weekStartIso && date <= todayIso),
+        activeLast7Days: Boolean(lastSeenAt) && lastSeenAt.slice(0, 10) >= weekStartIso,
+        isOverdue: isAdminMembershipOverdue(membership),
+        isDueSoon: Boolean(membershipDueDate)
+          && membershipDueDate >= todayIso
+          && membershipDueDate <= dueSoonCutoffIso
+          && ["active", "past_due"].includes(String(membership?.status || "inactive").trim().toLowerCase())
+          && String(membership?.plan_code || "none").trim().toLowerCase() !== "none",
       };
     })
     .sort((a, b) => {
@@ -294,6 +260,11 @@ function hydrateAdminMembersData({ profiles = [], practiceLogs = [], memberships
       return a.displayName.localeCompare(b.displayName);
     });
 
+  return { members };
+}
+
+function hydrateAdminMembersData(snapshot = {}) {
+  allAdminMembers = Array.isArray(snapshot?.members) ? snapshot.members : [];
   applyMemberFilter();
 }
 
@@ -309,17 +280,19 @@ async function loadAdminMembers() {
 
   window.appAnalytics?.identify(adminUser.id);
 
-  const cachedOverview = window.adminOverviewStore?.readCached?.() || { data: null, isFresh: false };
-  if (cachedOverview.data) {
-    hydrateAdminMembersData(cachedOverview.data);
+  const cachedMembers = window.adminDataCache?.read?.(ADMIN_MEMBERS_LIST_CACHE_KEY, ADMIN_MEMBERS_LIST_CACHE_TTL_MS) || { data: null, isFresh: false };
+  if (cachedMembers.data) {
+    hydrateAdminMembersData(cachedMembers.data);
   }
 
-  if (cachedOverview.isFresh) {
+  if (cachedMembers.isFresh) {
     return;
   }
 
   const overviewData = await window.adminOverviewStore?.getFresh?.();
-  hydrateAdminMembersData(overviewData);
+  const membersSnapshot = buildAdminMembersSnapshot(overviewData || {});
+  window.adminDataCache?.write?.(ADMIN_MEMBERS_LIST_CACHE_KEY, membersSnapshot);
+  hydrateAdminMembersData(membersSnapshot);
 }
 
 if (adminMemberSearchEl) {
