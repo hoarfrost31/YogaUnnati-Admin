@@ -3343,7 +3343,8 @@ input {
 
 .admin-link-list,
 .admin-list-wrap,
-.admin-recent-list {
+.admin-recent-list,
+.admin-reminder-list {
   display: grid;
   gap: 10px;
 }
@@ -3383,6 +3384,52 @@ input {
   padding: 18px 12px;
   text-align: center;
   font-size: 0.9rem;
+}
+
+.admin-dashboard-followup {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(50, 39, 29, 0.08);
+}
+
+.admin-dashboard-followup-head {
+  margin-bottom: 10px;
+}
+
+.admin-reminder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-reminder-copy {
+  min-width: 0;
+}
+
+.admin-reminder-copy strong {
+  display: block;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.admin-reminder-copy span,
+.admin-reminder-missing {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.admin-reminder-btn {
+  width: auto;
+  white-space: nowrap;
 }
 
 .admin-list-header {
@@ -3519,7 +3566,8 @@ input {
   }
 
   .admin-member-row,
-  .admin-link-card {
+  .admin-link-card,
+  .admin-reminder-row {
     flex-direction: column;
     align-items: flex-start;
   }

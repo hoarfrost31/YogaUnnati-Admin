@@ -11,6 +11,7 @@ const adminWeeklyActiveMembersCardEl = document.getElementById("adminWeeklyActiv
 const adminOverduePaymentsCountEl = document.getElementById("adminOverduePaymentsCount");
 const adminOverduePaymentsNoteEl = document.getElementById("adminOverduePaymentsNote");
 const adminOverduePaymentsCardEl = document.getElementById("adminOverduePaymentsCard");
+const adminOverdueReminderListEl = document.getElementById("adminOverdueReminderList");
 const adminDueSoonPaymentsCountEl = document.getElementById("adminDueSoonPaymentsCount");
 const adminDueSoonPaymentsNoteEl = document.getElementById("adminDueSoonPaymentsNote");
 const adminDueSoonPaymentsCardEl = document.getElementById("adminDueSoonPaymentsCard");
@@ -106,6 +107,65 @@ function formatAdminDate(dateString) {
   });
 }
 
+function normalizeAdminWhatsAppPhone(phone = "") {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `91${digits}`;
+  }
+
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return digits;
+  }
+
+  return "";
+}
+
+function buildAdminOverdueReminderMessage(member) {
+  const dueDateText = member.dueDate ? ` which was due on ${formatAdminDate(member.dueDate)}` : "";
+  return [
+    `Namaste ${member.displayName},`,
+    ``,
+    `This is a reminder from YogaUnnati that your membership payment is overdue${dueDateText}.`,
+    `Please renew at the earliest to continue smoothly.`,
+    ``,
+    `If you have already completed the payment, please ignore this message.`,
+    ``,
+    `Thank you.`,
+  ].join("\n");
+}
+
+function renderAdminOverdueReminderList(overdueMembers = []) {
+  if (!adminOverdueReminderListEl) {
+    return;
+  }
+
+  if (!overdueMembers.length) {
+    adminOverdueReminderListEl.innerHTML = '<div class="admin-empty-state">No overdue reminders right now.</div>';
+    return;
+  }
+
+  adminOverdueReminderListEl.innerHTML = overdueMembers
+    .map((member) => {
+      const whatsappPhone = normalizeAdminWhatsAppPhone(member.phone);
+      const whatsappUrl = whatsappPhone
+        ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(buildAdminOverdueReminderMessage(member))}`
+        : "";
+
+      return `
+        <div class="admin-reminder-row">
+          <div class="admin-reminder-copy">
+            <strong>${member.displayName}</strong>
+            <span>${member.planLabel}${member.dueDate ? ` | Due ${formatAdminDate(member.dueDate)}` : ""}</span>
+          </div>
+          ${whatsappUrl
+            ? `<a href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" class="secondary-btn admin-inline-btn admin-reminder-btn">WhatsApp</a>`
+            : `<span class="admin-reminder-missing">No phone</span>`}
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function getAdminTodayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -182,7 +242,6 @@ function renderAdminInsights(practiceLogs, memberships) {
   adminDueSoonPaymentsNoteEl.textContent = dueSoonMemberships.length
     ? 'Memberships renewing within the next 7 days.'
     : 'No renewals due in the next 7 days.';
-
 }
 
 function getAdminIsoTimestampDaysAgo(daysAgo) {
@@ -251,6 +310,9 @@ async function loadAdminDashboard() {
 
   const practiceLogs = practiceLogsResult.data || [];
   const memberships = membershipsResult.data || [];
+  const profileById = new Map(
+    profiles.map((profileRow) => [profileRow.id, getProfileFromRow(profileRow)]),
+  );
   const practicedTodayIds = new Set(
     practiceLogs
       .filter((row) => row.date === getAdminTodayIso())
@@ -262,6 +324,41 @@ async function loadAdminDashboard() {
   adminTodayCountEl.textContent = String(practicedTodayIds.size);
   adminPracticeLogCountEl.textContent = String(practiceLogs.length);
   renderAdminInsights(practiceLogs, memberships);
+
+  const overdueMemberships = memberships.filter((membership) => {
+    const planCode = String(membership.plan_code || "none").trim().toLowerCase();
+    if (planCode === "none") {
+      return false;
+    }
+
+    const status = String(membership.status || "inactive").trim().toLowerCase();
+    if (status === "past_due") {
+      return true;
+    }
+
+    const dueDate = String(membership.current_period_end || "").slice(0, 10);
+    return Boolean(dueDate) && dueDate < getAdminTodayIso() && ["active", "cancelled", "expired"].includes(status);
+  });
+
+  const overdueMembers = [...new Map(
+    overdueMemberships
+      .map((membership) => {
+        const profile = profileById.get(membership.user_id) || {};
+        return [
+          membership.user_id,
+          {
+            id: membership.user_id,
+            displayName: profile.displayName || DEFAULT_PROFILE_NAME,
+            phone: profile.phone || "",
+            dueDate: String(membership.current_period_end || "").slice(0, 10),
+            planLabel: String(membership.plan_code || "membership").replace(/_/g, " "),
+          },
+        ];
+      })
+      .filter(([memberId]) => Boolean(memberId)),
+  ).values()];
+
+  renderAdminOverdueReminderList(overdueMembers);
 
   const weekSeenCutoffIso = getAdminIsoTimestampDaysAgo(6);
   const recentlySeenMembers = profiles.filter((profileRow) => {
